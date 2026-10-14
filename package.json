@@ -1,0 +1,17 @@
+{
+  "name": "omo-agent-monitor",
+  "version": "1.0.0",
+  "description": "Live multi-project dashboard for OmO agents: agent flow, instructions, every tool call with arguments and results, and controls.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Caik Pigosso",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caikpigosso/omo-agent-monitor.git"
+  },
+  "keywords": ["pi-package", "omo", "senpi", "agents", "dashboard", "monitor"],
+  "files": ["extensions", "src", "docs", "README.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./extensions/agent-monitor.mjs"]
+  }
+}
