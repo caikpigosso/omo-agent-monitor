@@ -2,22 +2,28 @@ import { watch } from "node:fs";
 import { mkdir, readdir, readFile, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
-import { hubPort, locale, runDir as defaultRunDir } from "./paths.mjs";
+import { agentDir as defaultAgentDir, hubPort, locale, runDir as defaultRunDir } from "./paths.mjs";
+import { startHubData, dataEndpoints } from "./hub-data.mjs";
 
 const alive = pid => {
   try { process.kill(pid, 0); return true; }
   catch (error) { if (error.code === "ESRCH") return false; throw error; }
 };
-export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) {
+export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDir = defaultAgentDir } = {}) {
   await mkdir(runDir, { recursive: true });
   const projects = new Map(), streams = new Set(), secrets = new Set();
   const controlToken = randomBytes(32).toString("hex");
   let revision = 0, stopped = false, syncing, dirty = false;
+  const opaqueField = /((?:encrypted_content|encryptedContent|thinkingSignature)[\\"]*\s*:\s*[\\"]*)[A-Za-z0-9+/=_-]{40,}/g;
   function safe(value) {
     return JSON.parse(JSON.stringify(value, (key, item) => {
-      if (key === "controlToken" || key === "thinkingSignature" || key === "encryptedContent") return undefined;
+      if (key === "controlToken" || key === "thinkingSignature" || key === "encryptedContent"
+        || key === "encrypted_content") return undefined;
       if (typeof item !== "string") return item;
+      // Transcripts can quote raw provider payloads as text; blank their opaque reasoning blobs.
+      item = item.replace(opaqueField, "$1[redacted]");
       for (const token of secrets) item = item.replaceAll(token, "[redacted]");
+      for (const token of data.secrets()) item = item.replaceAll(token, "[redacted]");
       return item;
     }));
   }
@@ -33,7 +39,11 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
     }) };
   }
   const encode = (event, value) => new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(value)}\n\n`);
-  function emit(event, value) { for (const stream of streams) stream.enqueue(encode(event, value)); }
+  function emit(event, value) { for (const stream of streams)
+    stream.enqueue(encode(event, event === "projects" ? { ...safe(value), controlToken } : safe(value))); }
+  const data = await startHubData({ agentDir, projects, emit: (event, value) => {
+    if (!stopped) emit(event, value);
+  } });
   function publishProjects() { revision++; emit("projects", snapshot()); }
   function acceptState(project, state) {
     if (projects.get(project.entry.id) !== project || stopped) return;
@@ -132,7 +142,20 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
         if (request.method === "GET" && path === "/") return new Response(Bun.file(join(import.meta.dir, "index.html")), {
           headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
         });
+        // UI modules: flat names only, so no path can escape src/ui/.
+        const asset = request.method === "GET" && /^\/ui\/([a-z0-9-]+)\.(js|css)$/.exec(path);
+        if (asset) {
+          const file = Bun.file(join(import.meta.dir, "ui", `${asset[1]}.${asset[2]}`));
+          if (!await file.exists()) return json({ error: "Not found.", code: "not_found" }, 404);
+          return new Response(file, { headers: { "Cache-Control": "no-store",
+            "Content-Type": asset[2] === "js" ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8" } });
+        }
         if (request.method === "GET" && path === "/api/projects") return json(snapshot());
+        if (dataEndpoints.has(path)) {
+          if (request.method !== "GET") return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
+          const result = data.response(path, url.searchParams);
+          return json(safe(result.value), result.status);
+        }
         if (request.method === "GET" && path === "/api/events") {
           let controller;
           return new Response(new ReadableStream({
@@ -140,6 +163,9 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
               controller = stream; streams.add(stream); stream.enqueue(encode("projects", snapshot()));
               for (const project of projects.values()) if (project.state)
                 stream.enqueue(encode("state", { projectId: project.entry.id, state: project.state }));
+              const initial = data.initial();
+              stream.enqueue(encode("usage", safe(initial.usage)));
+              stream.enqueue(encode("accounts", safe(initial.accounts)));
             },
             cancel() { streams.delete(controller); },
           }), { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
@@ -178,14 +204,15 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
       },
     });
     await rescan();
-  } catch (error) { watcher.close(); server?.stop(true); throw error; }
-  return { url: server.url.toString(),
+  } catch (error) { watcher.close(); server?.stop(true); await data.stop(); throw error; }
+  return { url: server.url.toString(), ready: data.ready,
     async stop() {
       stopped = true; watcher.close();
       if (syncing) await syncing;
       for (const project of projects.values()) project.abort.abort();
       for (const stream of streams) stream.close();
       streams.clear(); server.stop(true);
+      await data.stop();
     },
   };
 }

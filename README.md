@@ -57,6 +57,25 @@ In the browser:
   show its arguments and result. Filters (All, Commands, Errors) and search.
 - **Controls:** send the agent a message (Cmd/Ctrl+Enter), stop the agent, or
   talk to the project's coordinator.
+- **Tasks:** a sortable table and a timeline (Gantt) of every agent with status,
+  model (and fallback), duration, tool calls, tokens, cost, cache hit and the plan
+  item it was working on.
+- **Plan:** the coordinator's phases and items with when each started and
+  finished, the tasks linked to each item, a progress chart and the active goal.
+- **Usage and Overview:** tokens, cost and messages over time for every session
+  on disk, grouped by provider, model, project, agent, session or account, plus
+  model, tool and project rankings and the most expensive tasks.
+- **Accounts:** how many accounts you have, which one is active, blocks and
+  expiry, quota gauges (5h, 7d...) with reset countdowns, quota history drawn
+  over token usage on the same time axis, burn rate and projected exhaustion.
+- **Estimates are labelled:** OmO does not record which Anthropic account served
+  each reply, which plan item a task belongs to, or future quota. The dashboard
+  infers these from timing and marks them as *inferred*. Quota history starts
+  when the dashboard first runs, so older Anthropic usage shows as account
+  `unknown`.
+- **Cost is API-equivalent:** it is what OmO computes from per-token API
+  prices. On a subscription you are not billed per token, so read it as a
+  relative measure of how heavy each task, model or project is.
 - **Themes:** light, dark or system; works on phones too.
 - **Language:** English by default. Switch to Portuguese with the **Language**
   selector in the sidebar; the choice is saved in the browser. To make Portuguese
@@ -101,7 +120,12 @@ details are in [docs/API.md](docs/API.md) and the design in
 - Sending messages and stopping agents require a token generated each time the
   hub starts, and requests from other origins are refused.
 - Reading needs no token: any program running on your machine can read the
-  transcripts through the local address. Do not use it on shared machines.
+  transcripts, usage and account names through the local address. Do not use it
+  on shared machines.
+- Account data is limited to names, states and quotas; tokens, keys and emails
+  are never read into any response.
+- The dashboard writes its own files under `~/.omo/agent/agent-monitor/`
+  (session registry, usage index, quota history).
 
 ## Troubleshooting
 

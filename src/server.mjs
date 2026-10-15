@@ -3,6 +3,10 @@ import { mkdir, readdir, readFile, writeFile, chmod, unlink } from "node:fs/prom
 import { createHash, randomBytes } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { agentDir as defaultAgentDir, runDir as defaultRunDir } from "./paths.mjs";
+import { parseTranscript, textOf } from "./transcript.mjs";
+import { buildTaskView } from "./task-view.mjs";
+import { buildPlan, readGoal } from "./plan.mjs";
+export { parseTranscript } from "./transcript.mjs";
 
 // Optional quota source: a module exporting readCoordinator() (e.g. a personal omo-auto launcher).
 async function loadQuotaReader(agentDir) {
@@ -13,8 +17,6 @@ async function loadQuotaReader(agentDir) {
 }
 
 const terminalStates = new Set(["completed", "error", "failed", "lost", "cancelled", "interrupted"]);
-const textOf = content => typeof content === "string" ? content
-  : (content || []).filter(item => item.type === "text").map(item => item.text).join("\n");
 const json = (value, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
 const packet = value => new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(value)}\n\n`);
 async function optionalRead(path) { try { return await readFile(path, "utf8"); }
@@ -23,66 +25,6 @@ async function optionalRead(path) { try { return await readFile(path, "utf8"); }
 async function filesIn(path) { try { return await readdir(path); }
   catch (error) { if (error.code === "ENOENT") return []; throw error; }
 }
-export function parseTranscript(contents) {
-  const timeline = [], messages = [], calls = new Map();
-  let instruction = "", seenUser = false, model;
-  const lines = contents.split("\n");
-  for (let index = 0; index < lines.length; index++) {
-    if (!lines[index].trim()) continue;
-    let entry;
-    try { entry = JSON.parse(lines[index]); }
-    catch (error) { if (index === lines.length - 1) break; throw error; }
-    const at = entry.timestamp;
-    if (entry.type === "model_change") {
-      model = { provider: entry.provider, model: entry.modelId };
-      timeline.push({ id: entry.id, at, kind: "model", text: `${entry.provider}/${entry.modelId}` });
-    }
-    if (entry.type !== "message") continue;
-    const message = entry.message, text = textOf(message.content);
-    if (text) messages.push({ id: entry.id, role: message.role === "toolResult" ? "tool" : message.role,
-      text: message.role === "toolResult" ? text.slice(0, 20_000) : text, at, tool: message.toolName });
-    switch (message.role) {
-      case "toolResult": {
-        const call = calls.get(message.toolCallId);
-        if (call) Object.assign(call.tool, { result: text.slice(0, 20_000), truncated: text.length > 20_000,
-          isError: message.isError === true, endedAt: at });
-        break;
-      }
-      case "user":
-        timeline.push({ id: entry.id, at, kind: seenUser ? "user" : "instruction", text });
-        if (!seenUser) instruction = text;
-        seenUser = true;
-        break;
-      case "assistant":
-        for (const [i, item] of (typeof message.content === "string"
-          ? [{ type: "text", text: message.content }] : message.content || []).entries()) {
-          const event = { id: `${entry.id}:${i}`, at };
-          switch (item.type) {
-            case "text": timeline.push({ ...event, kind: "assistant", text: item.text }); break;
-            case "thinking": {
-              const title = /^\s*\*\*([^*\n]+)\*\*/.exec(item.thinking || "")?.[1];
-              if (title) timeline.push({ ...event, kind: "thinking", text: title });
-              break;
-            }
-            case "toolCall": {
-              const args = item.arguments || {}, first = Object.values(args).find(value => typeof value === "string") || "";
-              const value = item.name === "bash" ? args.command : item.name === "read" ? args.file_path || args.path
-                : item.name === "grep" ? args.pattern : item.name === "ls" ? args.path : first;
-              const call = { ...event, kind: "tool", tool: { callId: item.id, name: item.name,
-                args: item.arguments, summary: `${item.name}${item.name === "bash" ? ":" : ""} ${value || ""}`
-                  .split("\n")[0].slice(0, 240).trim() } };
-              calls.set(item.id, call);
-              timeline.push(call);
-              break;
-            }
-          }
-        }
-        break;
-    }
-  }
-  return { instruction, timeline, messages, model };
-}
-
 export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage, sessionFile, status, model,
   agentDir = defaultAgentDir, runDir = defaultRunDir }) {
   const readCoordinator = await loadQuotaReader(agentDir);
@@ -91,25 +33,11 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
   const streams = new Set(), watchers = []; let records = new Map(), transcripts = new Map(), lineage = new Map();
   const controlToken = randomBytes(32).toString("hex"), startedAt = new Date().toISOString();
   let server, store, storeWatcher, revision = 0, stopped = false, refreshing, dirty = false, snapshot, fingerprint;
-  let coordinator = parseTranscript("");
+  let coordinator = parseTranscript(""), dags = [];
   function taskView(record) {
     const detail = transcripts.get(record.task_id) || parseTranscript("");
-    const requested = (record.model || "").split("/"), effective = record.effective_model || record.resolved_model;
-    // Tool calls finish in seconds, so fall back to the latest one to show what a running agent is doing.
-    const current = detail.timeline.findLast(event => event.tool && !event.tool.endedAt)
-      || detail.timeline.findLast(event => event.tool);
-    return { id: record.task_id, ...lineage.get(record.task_id),
-      name: record.description || record.task_summary || record.name || record.task_id,
-      agent: record.subagent_type || record.category || record.agent_type, status: record.status,
-      provider: effective?.provider || detail.model?.provider || requested[0],
-      model: effective?.model_id || detail.model?.model || requested.slice(1).join("/"),
-      tokens: record.run_stats?.total_tokens, createdAt: record.created_at,
-      startedAt: record.started_at, endedAt: record.terminal_at,
-      toolCount: detail.timeline.filter(event => event.kind === "tool").length,
-      current: record.status === "running" && current
-        ? { name: current.tool.name, summary: current.tool.summary, at: current.at } : undefined,
-      lastText: detail.messages.findLast(message => message.role === "assistant")?.text.slice(-240)
-        || record.final_response?.slice(-240), sessionPath: record.sessionPath };
+    return buildTaskView(record, detail, { lineage: lineage.get(record.task_id), dags,
+      snapshots: coordinator.todoSnapshots });
   }
   async function rebuild() {
     const registry = await optionalRead(registryPath);
@@ -150,7 +78,7 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
       return [record.task_id, parseTranscript(path ? await optionalRead(path) : "")];
     })));
     coordinator = parseTranscript(sessionFile ? await optionalRead(sessionFile) : "");
-    const dags = [];
+    dags = [];
     for (const filename of store ? await filesIn(join(store, "dag", "runs")) : []) {
       if (!filename.endsWith(".json")) continue;
       const text = await optionalRead(join(store, "dag", "runs", filename));
@@ -167,6 +95,9 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
       parents: [{ id: parentId, name: "OmO coordinator", cwd, project: basename(cwd),
         model: coordinator.model ? `${coordinator.model.provider}/${coordinator.model.model}` : model, status }],
       tasks: [...records.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(taskView), dags,
+      coordinatorStats: coordinator.stats,
+      plan: buildPlan(coordinator.todoSnapshots, [...records.values()]),
+      goal: await readGoal(sessionFile, parentId),
       quota: quota.kind === "selected" ? { ...quota.remaining, selectedProvider: quota.provider } : {},
       errors: quota.kind === "selected" || quota.kind === "none" ? []
         : ["Quota has fewer than two recent readings; refresh it in the native usage panel."] };
@@ -185,7 +116,9 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
   function changed() { refresh().catch(error => console.error("[agent-monitor] refresh failed", { parentId, error: error.message })); }
   await mkdir(dirname(registryPath), { recursive: true });
   watchers.push(watch(dirname(registryPath), (_event, file) => { if (file === "task-stores.json") changed(); }));
-  if (sessionFile) watchers.push(watch(dirname(sessionFile), (_event, file) => { if (file === basename(sessionFile)) changed(); }));
+  if (sessionFile) watchers.push(watch(dirname(sessionFile), { recursive: true }, (_event, file) => {
+    if (file === basename(sessionFile) || file === join("extensions", "goal", `${parentId}.json`)) changed();
+  }));
   await refresh();
   server = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 0, maxRequestBodySize: 256_000,
     async fetch(request) {

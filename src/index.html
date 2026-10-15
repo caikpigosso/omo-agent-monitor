@@ -293,6 +293,7 @@
       .chev { transition:none; }
     }
   </style>
+  <link rel="stylesheet" href="/ui/ui.css">
 </head>
 <body>
   <div class="app" id="app" data-detail="closed" data-switcher="closed">
@@ -302,6 +303,7 @@
         <span id="conn" class="conn" role="status"></span>
         <button id="switcher-close" class="icon-btn switcher-close" type="button" aria-label="Close project list" data-i18n-aria="side.close"></button>
       </div>
+      <nav id="global-nav" class="global-nav" aria-label="Dashboard" data-i18n-aria="nav.global"></nav>
       <div class="side-search">
         <label class="sr-only" for="project-filter" data-i18n="side.filter">Filter projects</label>
         <input id="project-filter" class="field" type="search" placeholder="Filter projects" data-i18n-ph="side.filter" autocomplete="off" spellcheck="false">
@@ -476,7 +478,9 @@
         'code.invalid_json':'Invalid request body (JSON).', 'code.invalid_message':'Invalid message: write between 1 and {max} characters.',
         'code.coordinator_unavailable':'The coordinator is not available right now.', 'code.control_failed':'The session could not complete the action.',
         'code.control_rejected':'OmO refused the action: {reason}', 'code.request_cancelled':'The request was cancelled.',
-        'code.session_unavailable':'The project session is not responding.'
+        'code.session_unavailable':'The project session is not responding.',
+        'nav.global':'Dashboard', 'nav.overview':'Overview', 'nav.accounts':'Accounts', 'ptab.label':'Project views',
+        'ptab.flow':'Flow', 'ptab.tasks':'Tasks', 'ptab.plan':'Plan', 'ptab.usage':'Usage', 'ui.loading':'Loading view…'
       },
       'pt-BR': {
         'app.title':'Painel de agentes · OmO', 'app.description':'Monitor local dos projetos OmO: fluxo de agentes, instruções, comandos e controle.',
@@ -561,7 +565,9 @@
         'code.invalid_json':'Corpo da requisição inválido (JSON).', 'code.invalid_message':'Mensagem inválida: escreva de 1 a {max} caracteres.',
         'code.coordinator_unavailable':'O coordenador não está disponível no momento.', 'code.control_failed':'A sessão não conseguiu concluir a ação.',
         'code.control_rejected':'O OmO recusou a ação: {reason}', 'code.request_cancelled':'A solicitação foi cancelada.',
-        'code.session_unavailable':'A sessão do projeto não está respondendo.'
+        'code.session_unavailable':'A sessão do projeto não está respondendo.',
+        'nav.global':'Painel', 'nav.overview':'Visão geral', 'nav.accounts':'Contas', 'ptab.label':'Visões do projeto',
+        'ptab.flow':'Fluxo', 'ptab.tasks':'Tarefas', 'ptab.plan':'Plano', 'ptab.usage':'Uso', 'ui.loading':'Carregando visão…'
       }
     };
     const ICONS = {
@@ -722,20 +728,25 @@
     const overlayMode = () => matchMedia('(max-width:1199px)').matches;
     const cssPx = (name, fallback) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || fallback;
 
-    /* ---------- routing: #/p/<projectId>[/t/<taskId>|/c] ---------- */
+    /* ---------- routing: #/overview | #/accounts | #/p/<projectId>[/tasks|/plan|/usage][/t/<taskId>|/c] ---------- */
+    const TABS = ['flow','tasks','plan','usage'];
     function parseHash() {
-      const m = location.hash.match(/^#\/p\/([^/]+)(?:\/t\/([^/]+)|\/(c))?\/?$/);
-      if (!m) return {pid:null,target:null};
+      const g = location.hash.match(/^#\/(overview|accounts)\/?$/);
+      if (g) return {page:g[1],pid:null,tab:'flow',target:null};
+      const m = location.hash.match(/^#\/p\/([^/]+)(?:\/(tasks|plan|usage))?(?:\/t\/([^/]+)|\/(c))?\/?$/);
+      if (!m) return {pid:null,tab:'flow',target:null};
       try {
-        const pid = decodeURIComponent(m[1]);
-        if (m[2]) return {pid,target:{kind:'task',id:decodeURIComponent(m[2])}};
-        if (m[3]) return {pid,target:{kind:'coord'}};
-        return {pid,target:null};
-      } catch { return {pid:null,target:null}; }
+        const pid = decodeURIComponent(m[1]), tab = m[2] || 'flow';
+        if (m[3]) return {pid,tab,target:{kind:'task',id:decodeURIComponent(m[3])}};
+        if (m[4]) return {pid,tab,target:{kind:'coord'}};
+        return {pid,tab,target:null};
+      } catch { return {pid:null,tab:'flow',target:null}; }
     }
     function hashFor(r) {
+      if (r.page) return `#/${r.page}`;
       if (!r.pid) return '';
       let h = `#/p/${enc(r.pid)}`;
+      if (r.tab && r.tab !== 'flow' && TABS.includes(r.tab)) h += `/${r.tab}`;
       if (r.target?.kind === 'task') h += `/t/${enc(r.target.id)}`;
       else if (r.target?.kind === 'coord') h += '/c';
       return h;
@@ -773,7 +784,7 @@
       app.projects = snap; app.projectsError = '';
       const hubLang = storedLang ? null : normLang(snap.locale);
       if (hubLang && hubLang !== lang) { setLang(hubLang); rerender(); }
-      if (!app.route.pid && snap.projects.length) {
+      if (!app.route.pid && !app.route.page && snap.projects.length) {
         const first = snap.projects.find(p => p.online) || snap.projects[0];
         navigate({pid:first.id,target:null},true);
         return;
@@ -787,6 +798,7 @@
       const prev = app.states.get(pid);
       if (prev && s.revision <= prev.revision) return;
       app.states.set(pid,s); app.stateErrors.delete(pid);
+      window.OMOUI?.onEvent('state',{projectId:pid});
       if (pid !== app.route.pid) return;
       renderMain();
       if (detailTarget()) { renderDetailHeader(); renderComposer(); fetchDetail(true); }
@@ -844,7 +856,14 @@
     function renderSidebar() {
       const list = $('project-list'), snap = app.projects;
       const focusPid = list.contains(document.activeElement) ? document.activeElement.dataset.pid : null;
-      $('switcher-name').textContent = project(app.route.pid)?.name || t('mobile.projects');
+      $('switcher-name').textContent = app.route.page ? t('nav.' + app.route.page) : project(app.route.pid)?.name || t('mobile.projects');
+      document.querySelector('.switcher .lbl').hidden = !!app.route.page;
+      $('global-nav').replaceChildren(...[['overview','sparkle'],['accounts','user']].map(([page,ic]) => {
+        const a = el('a','gnav'); a.href = hashFor({page}); a.dataset.page = page;
+        if (app.route.page === page) a.setAttribute('aria-current','page');
+        a.append(icon(ic),el('span','t',t('nav.' + page)),icon('check','sm p-check'));
+        return a;
+      }));
       if (!snap) {
         $('project-count').textContent = '';
         list.replaceChildren(el('p','side-empty',app.projectsError ? projectsErrorText() : t('side.loading')));
@@ -892,10 +911,10 @@
     function renderMain() {
       const view = $('view'), main = $('main');
       const top = main.scrollTop;
-      const lefts = [...view.querySelectorAll('.flow-scroll')].map(n => [n.dataset.key,n.scrollLeft]);
+      const lefts = [...view.querySelectorAll('.flow-scroll,.x-scroll')].map(n => [n.dataset.key,n.scrollLeft]);
       const focusKey = view.contains(document.activeElement) ? document.activeElement.dataset.key : null;
       view.replaceChildren(...(app.eventError ? [notice(t('main.badEvent',{type:app.eventError}),'danger')] : []),...mainContent());
-      for (const [k,l] of lefts) { const n = view.querySelector(`.flow-scroll[data-key="${CSS.escape(k)}"]`); if (n) n.scrollLeft = l; }
+      for (const [k,l] of lefts) { const n = view.querySelector(`:is(.flow-scroll,.x-scroll)[data-key="${CSS.escape(k)}"]`); if (n) n.scrollLeft = l; }
       main.scrollTop = top;
       if (focusKey) view.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({preventScroll:true});
     }
@@ -904,13 +923,14 @@
       if (!snap) return [app.projectsError
         ? stateBox(t('main.hubDown'),projectsErrorText(),{tone:'danger',retry:loadProjects})
         : stateBox(t('main.loadingProjects'),t('main.connecting'))];
+      if (app.route.page) return window.OMOUI ? OMOUI.page(app.route.page) : [stateBox(t('ui.loading'),'')];
       if (!snap.projects.length) return [stateBox(t('main.noSessions'),t('main.noSessionsText'))];
       const pid = app.route.pid, p = project(pid);
       if (!p) {
         const first = snap.projects[0];
         return [stateBox(t('main.notFound'),t('main.notFoundText',{pid:pid ?? ''}),{link:{href:hashFor({pid:first.id}),text:t('main.openFirst',{name:first.name || first.id})}})];
       }
-      const st = stateOf(pid), out = [projectHeader(p,st)];
+      const st = stateOf(pid), out = [projectHeader(p,st),projectTabs(pid)];
       if (!st) {
         const err = app.stateErrors.get(pid);
         if (!p.online) out.push(stateBox(t('main.offline'),t('main.offlineText')));
@@ -921,9 +941,23 @@
       if (!p.online) out.push(notice(t('main.offlineNotice')));
       // SessionState.errors arrive in English; only the known quota message is translated.
       for (const e of Array.isArray(st.errors) ? st.errors : []) out.push(notice(String(e) === QUOTA_STALE ? t('err.quotaStale') : String(e)));
+      if (app.route.tab !== 'flow' && TABS.includes(app.route.tab)) {
+        out.push(...(window.OMOUI ? OMOUI.tab(app.route.tab,pid,st) : [stateBox(t('ui.loading'),'')]));
+        return out;
+      }
       out.push(metrics(st),flowPanel(pid,st));
       if (Array.isArray(st.dags) && st.dags.length) out.push(dagPanel(pid,st));
       return out;
+    }
+    function projectTabs(pid) {
+      const nav = el('nav','ptabs'); nav.setAttribute('aria-label',t('ptab.label'));
+      for (const tab of TABS) {
+        const a = el('a','ptab',t('ptab.' + tab)); a.dataset.key = 'ptab:' + tab;
+        a.href = hashFor({pid,tab,target:app.route.target});
+        if ((app.route.tab || 'flow') === tab) a.setAttribute('aria-current','page');
+        nav.append(a);
+      }
+      return nav;
     }
     function projectHeader(p, st) {
       const head = el('header','phead');
@@ -1197,7 +1231,7 @@
     }
     function closeDetail() {
       const k = nodeKey(app.route);
-      navigate({pid:app.route.pid,target:null});
+      navigate({pid:app.route.pid,tab:app.route.tab,target:null});
       if (k) $('view').querySelector(`[data-key="${CSS.escape(k)}"]`)?.focus({preventScroll:true});
     }
     async function fetchDetail(silent) {
@@ -1263,7 +1297,7 @@
           meta.push(metaItem('clock',dur(elapsed(task)),t('detail.duration')),metaItem('hash',t('detail.tokens',{n:compact(task.tokens)}),t('m.tokens')),metaItem('tool',t('detail.tools',{count:task.toolCount}),t('detail.toolCalls')));
           const parent = taskOf(r.pid,task.parentId);
           const a = el('a');
-          a.href = hashFor(parent ? {pid:r.pid,target:{kind:'task',id:parent.id}} : {pid:r.pid,target:{kind:'coord'}});
+          a.href = hashFor(parent ? {pid:r.pid,tab:r.tab,target:{kind:'task',id:parent.id}} : {pid:r.pid,tab:r.tab,target:{kind:'coord'}});
           a.append(icon('corner','sm'),el('span','',t('detail.origin',{name:parent ? parent.name || parent.id : t('common.coordinator')})));
           meta.push(a);
           if (task.status === 'running' && task.current) {
@@ -1655,9 +1689,15 @@
     events.addEventListener('projects',streamEvent(acceptProjects));
     events.addEventListener('state',streamEvent(m => acceptState(m?.projectId,m?.state)));
     events.addEventListener('activity',streamEvent(handleActivity));
+    for (const type of ['usage','accounts']) events.addEventListener(type,streamEvent(m => window.OMOUI?.onEvent(type,m)));
+    // Bridge for the v1.2 view modules in /ui/*.js (tasks, plan, usage, overview, accounts).
+    window.OMO = { app, I18N, t, has, lang:() => lang, fmt:() => fmt, el, icon, chip, tag, stateBox, notice, num, compact, dur, durShort,
+      ms, clock, elapsed, shortPath, hashFor, navigate, project, stateOf, taskOf, renderMain, rerender, errMsg, apiError,
+      STATUS_TONE, TERMINAL, FAILED, ICONS, streamLive };
     if (detailTarget()) openDetail();
     loadProjects();
     window.addEventListener('pagehide',() => { events.close(); detail.ctrl?.abort(); },{once:true});
   </script>
+  <script type="module" src="/ui/app.js"></script>
 </body>
 </html>

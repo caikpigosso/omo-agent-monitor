@@ -57,6 +57,27 @@ No navegador:
   argumentos e o resultado. Há filtros (Tudo, Comandos, Erros) e busca.
 - **Controles:** mande uma orientação ao agente (Cmd/Ctrl+Enter), interrompa o
   agente ou fale com o coordenador do projeto.
+- **Tarefas:** tabela ordenável e linha do tempo (Gantt) de todos os agentes,
+  com status, modelo (e fallback), duração, comandos, tokens, custo, cache e o
+  item do plano em que cada um trabalhava.
+- **Plano:** as fases e itens do coordenador, com quando cada um começou e
+  terminou, as tarefas ligadas a cada item, um gráfico de progresso e o goal
+  ativo.
+- **Uso e Visão geral:** tokens, custo e mensagens ao longo do tempo de todas as
+  sessões no disco, agrupados por provedor, modelo, projeto, agente, sessão ou
+  conta, com rankings de modelos, comandos e projetos e as tarefas mais caras.
+- **Contas:** quantas contas você tem, qual está ativa, bloqueios e validade,
+  medidores de cota (5h, 7d...) com contagem até reiniciar, histórico de cota
+  desenhado sobre o uso de tokens no mesmo eixo de tempo, ritmo de consumo e
+  previsão de esgotamento.
+- **Estimativas marcadas:** o OmO não registra qual conta Anthropic atendeu cada
+  resposta, a que item do plano uma tarefa pertence nem a cota futura. O painel
+  deduz isso pelo horário e marca como *estimado*. O histórico de cota começa
+  quando o painel roda pela primeira vez, então o uso Anthropic anterior aparece
+  com a conta `unknown`.
+- **Custo equivalente à API:** é o valor que o OmO calcula pelo preço por token
+  da API. Na assinatura você não paga por token; use o número como medida
+  relativa de quanto cada tarefa, modelo ou projeto pesa.
 - **Temas:** claro, escuro ou do sistema; funciona no celular também.
 - **Idioma:** o painel abre em inglês. Troque para português no seletor
   **Language** da barra lateral; a escolha fica salva no navegador. Para usar
@@ -100,7 +121,12 @@ mesma. Os detalhes da API estão em [docs/API.md](docs/API.md) e o design em
 - Mandar mensagens e interromper agentes exige um token gerado a cada vez que a
   central sobe, e pedidos de outras origens são recusados.
 - A leitura não exige token: qualquer programa rodando na sua máquina consegue
-  ler as transcrições pelo endereço local. Não use em máquinas compartilhadas.
+  ler as transcrições, o uso e os nomes das contas pelo endereço local. Não use
+  em máquinas compartilhadas.
+- Das contas, só nomes, estados e cotas são lidos; tokens, chaves e e-mails
+  nunca entram em nenhuma resposta.
+- O painel grava os próprios arquivos em `~/.omo/agent/agent-monitor/`
+  (registro de sessões, índice de uso e histórico de cota).
 
 ## Problemas comuns
 

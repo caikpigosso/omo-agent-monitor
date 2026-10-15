@@ -122,3 +122,96 @@ type CoordinatorDetail = { parent: SessionState["parents"][0]; timeline: Timelin
 Rules: never expose thinking signatures/encrypted content; never put session
 tokens in any hub response other than the hub's own `controlToken`. Tool
 `args` are passed through as recorded (they are the user's own local data).
+
+## v1.2 additions: tasks, plan, usage, accounts and correlations
+
+Goal: correlate as much as possible. A task's cost must be traceable to its plan
+item, model, the account that (probably) paid for it, and the quota burned in the
+same period. Everything stays local; account data never includes tokens, emails
+or installation keys. Anything inferred carries `inferred: true`.
+
+### Extended per-session data (session server -> hub, same endpoints)
+
+```ts
+type TaskView = /* v1 fields */ & {
+  rootId?: string;
+  requestedModel?: string; effectiveModel?: string; fallbackUsed: boolean;
+  stats?: { runtimeMs?: number; turns?: number; toolCalls?: number;
+    inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number;
+    totalTokens?: number; costUsd?: number; tokensPerSecond?: number; cacheHitRate?: number };
+  dag?: { runId: string; nodeId: string };            // when the task is a workflow node
+  planItem?: { phase: string; content: string; inferred: true }; // todo item in_progress when the task was created
+  toolBreakdown?: Record<string, { calls: number; errors: number }>;
+};
+
+type SessionState = /* v1 fields */ & {
+  coordinatorStats: { inputTokens: number; outputTokens: number; cacheReadTokens: number;
+    cacheWriteTokens: number; totalTokens: number; costUsd: number; turns: number; toolCalls: number;
+    toolBreakdown: Record<string, { calls: number; errors: number }> };
+  plan?: PlanView;        // from the coordinator session's "senpi.todo-state" entries
+  goal?: GoalView;        // only if the goal store is found; never invented
+};
+
+type PlanView = {
+  ask?: string; updatedAt: string;
+  phases: Array<{ name: string; items: Array<{ content: string; status: string;
+    firstSeenAt: string; startedAt?: string; completedAt?: string; droppedAt?: string;
+    taskIds: string[] /* inferred: tasks created while this item was in_progress */ }> }>;
+  history: Array<{ at: string; done: number; total: number }>;   // one point per todo-state snapshot
+};
+
+type GoalView = { id: string; objective: string; status: string; createdAt: string; updatedAt: string;
+  tokensUsed?: number; timeUsedSeconds?: number };
+```
+
+### Hub-only endpoints (global, across every project on disk)
+
+- `GET /api/usage?from=ISO&to=ISO&bucket=hour|day&groupBy=provider|model|project|agent|session|account`
+  -> `UsageReport`. Source: every assistant message with `usage` in every session file
+  on disk (coordinator sessions under `<agentDir>/sessions/**` and agent sessions under
+  `<agentDir>/projects/*/senpi-task/children/**`). Indexed incrementally (byte offsets),
+  persisted under `<agentDir>/agent-monitor/usage-index/`, kept current with fs.watch.
+  `project` = basename of the session header cwd; `agent` = task agent type or
+  `coordinator`. `account` grouping is inferred (see accounts) and flagged.
+- `GET /api/accounts` -> `AccountsReport`.
+- `GET /api/quota-history?from=ISO&to=ISO` -> `{ samples: QuotaSample[] }`.
+- `GET /api/insights?from=ISO&to=ISO` -> `Insights`.
+- SSE `/api/events` adds `event: usage` (`{ indexedAt }`, refetch hint) and
+  `event: accounts` (`AccountsReport`) when those change.
+
+```ts
+type Metrics = { messages: number; inputTokens: number; outputTokens: number; cacheReadTokens: number;
+  cacheWriteTokens: number; totalTokens: number; costUsd: number };
+type UsageReport = { from: string; to: string; bucket: "hour" | "day"; groupBy: string;
+  series: Array<{ key: string; label: string; inferred?: boolean; points: Array<{ t: string } & Metrics> }>;
+  totals: Metrics; coverage: { files: number; indexedAt: string; partial: boolean } };
+
+type AccountsReport = {
+  counts: { total: number; byProvider: Record<string, number> };
+  accounts: Array<{ id: string; provider: string; name: string; active: boolean; pinned: boolean;
+    state?: string; expiresAt?: string; blockedUntil?: string; blockReason?: string;
+    lastSuccessAt?: string; failureCount?: number }>;
+  quotas: Array<{ provider: string; account?: string; plan?: string; state?: string; updatedAt: string;
+    windows: Array<{ label: string; percent: number; resetsAt: string; windowMs: number }> }>;
+};
+// Sources: <agentDir>/auth.json (names/states only), <agentDir>/credential-pool-state.json,
+// $XDG_CACHE_HOME|~/.cache/omo-senpi/side-panel-usage.json (current quota, active account only).
+
+type QuotaSample = { at: string; provider: string; account?: string;
+  windows: Array<{ label: string; percent: number; resetsAt: string }> };
+// Appended to <agentDir>/agent-monitor/quota-history.jsonl whenever the usage cache changes
+// (fs.watch, deduplicated). History therefore starts when the hub first runs.
+
+type Insights = {
+  burn: Array<{ provider: string; account?: string; window: string; percent: number; resetsAt: string;
+    percentPerHour?: number; projectedExhaustAt?: string; tokensPerPercent?: number; inferred: true }>;
+  topTasks: Array<{ project: string; projectId?: string; taskId: string; name: string; agent?: string;
+    status: string; model?: string; costUsd?: number; totalTokens?: number; runtimeMs?: number; createdAt: string }>;
+  models: Array<{ provider: string; model: string; messages: number; totalTokens: number; costUsd: number;
+    fallbackCount: number }>;
+  tools: Array<{ name: string; calls: number; errors: number }>;  // from open sessions' timelines
+  projects: Array<{ project: string; costUsd: number; totalTokens: number; tasks: number; sessions: number }>;
+};
+// topTasks/projects read every task record on disk (<agentDir>/projects/*/senpi-task/tasks/*.json),
+// not only open sessions. projectId is set when that project has an open session in the hub.
+```

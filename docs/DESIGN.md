@@ -129,8 +129,10 @@ revisions (state also ignores equal ones); no timers or polling. A `state`
 event for the open project refetches the open detail (aborting the stale
 fetch), keeps scroll position unless the user was at the bottom (then
 follows) and restores focus by key. `activity` events append to the open
-timeline. Deep links `#/p/<projectId>[/t/<taskId>|/c]` drive all
-navigation (pushState; back/forward work). Escape closes, in order: abort
+timeline. Deep links drive all navigation (pushState; back/forward work):
+`#/overview`, `#/accounts`, `#/p/<projectId>[/tasks|/plan|/usage][/t/<taskId>|/c]`
+(no view segment = Flow, so v1 links keep working; the detail stays open
+while switching project tabs). Escape closes, in order: abort
 confirmation, project sheet, detail.
 
 ## 7. Depth & Surface
@@ -157,8 +159,9 @@ English (`en`, formats with `en-US`) is the default; Brazilian Portuguese
 (`pt-BR`) is the alternative. Component names elsewhere in this file use the
 English labels; the pt-BR wording is the v2 original (Atividade, Instrução,
 Coordenador, Interromper, Enviar...).
-- All copy lives in two flat dictionaries inside `index.html` with identical
-  keys, read through `t(key, vars)`. Plural entries are `{one, other}`
+- All copy lives in two flat dictionaries with identical keys, read through
+  `t(key, vars)`: the v1 strings inside `index.html`, the v1.2 view strings in
+  `src/ui/i18n.js` (merged into the same dictionaries at load). Plural entries are `{one, other}`
   selected by `Intl.PluralRules`; zero always takes `other`. Numbers,
   compact tokens (`12.9M` / `12,9 mi`), times and durations (`3m 4s` /
   `3 min 4 s`) use `Intl` with the active locale. Static markup carries
@@ -177,3 +180,54 @@ Coordenador, Interromper, Enviar...).
   except the known stale-quota message. The coordinator is always labelled
   by the UI, never by `parents[0].name`. User and agent data (names,
   prompts, tool output) is never translated.
+
+## 10. v1.2 views (tasks, plan, usage, overview, accounts)
+Code: `src/ui/*.js` ES modules (served flat at `/ui/<name>.js`) plus
+`src/ui/ui.css`; `index.html` keeps the shell and exposes `window.OMO`
+(t, formatters, chip, routing, state) and calls `window.OMOUI` hooks.
+- **Navigation:** sidebar global entries Overview / Accounts above the
+  project list (same wash + check selection as projects); project tabs
+  Flow | Tasks | Plan | Usage as links with the ink underline.
+- **Tasks:** Gantt (rows in tree order, bars = status tone, running bars
+  striped, plan phases as shaded bands, dashed now line). Dragging on the
+  track selects a time range; phase chips select a phase range (keyboard
+  path); the selection filters the table and dims bars outside it.
+  Sortable table (`aria-sort`), search + status + agent filters, totals
+  row, fallback badge (warning tone, title = requested -> effective), plan
+  item with the inferred tag. Row, name button and bar open the agent.
+- **Plan:** KPIs (done/total with progress bar, in progress, phases,
+  updated), request text, goal card, burn-up (done = filled success step
+  area, total = dashed step line), phase cards with item chip, timestamps,
+  time spent and linked-task chips (inferred) that open the agent.
+- **Usage (project) / Overview (global):** KPIs today / 7 d / 30 d for
+  tokens, cost and messages (plus sessions, running agents, accounts on
+  Overview); stacked bar card with range 24 h / 7 d / 30 d, group by
+  (Overview only: provider, model, project, agent, session, account) and
+  metric; top 7 series + "others". `/api/usage` has no project filter, so
+  the project tab charts its own `groupBy=project` series and builds the
+  model / agent / tool / top-task tables from the session state.
+- **Accounts:** totals per provider, one card per account (active,
+  pinned, state, block with a live countdown only when in the future,
+  otherwise "last block expired", credential expiry with an expired tag,
+  last success, failures), ring gauges per quota window (info < 70%,
+  warning < 90%, danger) with reset countdown and burn rate or "collecting
+  data", and quota-history lines (left axis, %) over hourly token bars
+  (right axis) on one time axis. Unattributed (`<provider>:unknown`) usage
+  gets its own card.
+- **Charts:** inline SVG drawn at the card's measured width after each
+  render (window resize redraws); a minimum width makes the chart scroll
+  inside its card (default scrolled to the latest data); `role=img` with an
+  aria summary, hover tooltip, and a "Show as table" toggle. Series colors
+  `--c1..--c8` + `--c-other` (light/dark pairs in `ui.css`).
+- **Labels:** cost is always "API-equivalent cost" with a tooltip;
+  anything inferred (plan item, task links, account attribution, burn
+  rate) carries a dashed `inferred` tag with a tooltip.
+- **Live data:** one fetch cache per key; a new URL aborts the stale
+  request, an SSE refresh while loading is coalesced into one follow-up.
+  `usage` refetches the visible usage/insights data, `accounts` the
+  accounts/quota data, `state` the insights; hidden views' entries are
+  dropped and refetched on return. No polling; one 1 s interval runs only
+  while a `[data-countdown]` is on screen and repaints when one crosses 0.
+- **Accepted debt:** the Gantt time brush is pointer-only (phase chips
+  are the keyboard path); tables scroll horizontally inside their card on
+  phones; the burn-up shows every todo re-plan as a drop in done.
