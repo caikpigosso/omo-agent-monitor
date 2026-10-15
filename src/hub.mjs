@@ -4,6 +4,9 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { agentDir as defaultAgentDir, hubPort, locale, runDir as defaultRunDir } from "./paths.mjs";
 import { startHubData, dataEndpoints } from "./hub-data.mjs";
+import { startControlSecrets } from "./control-secrets.mjs";
+import { watchdogConfig } from "./watchdog-signals.mjs";
+import { watchdogHistory } from "./watchdog-history.mjs";
 
 const alive = pid => {
   try { process.kill(pid, 0); return true; }
@@ -13,6 +16,7 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
   await mkdir(runDir, { recursive: true });
   const projects = new Map(), streams = new Set(), secrets = new Set();
   const controlToken = randomBytes(32).toString("hex");
+  const controlSecrets = await startControlSecrets(agentDir);
   let revision = 0, stopped = false, syncing, dirty = false;
   const opaqueField = /((?:encrypted_content|encryptedContent|thinkingSignature)[\\"]*\s*:\s*[\\"]*)[A-Za-z0-9+/=_-]{40,}/g;
   function safe(value) {
@@ -24,17 +28,21 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
       item = item.replace(opaqueField, "$1[redacted]");
       for (const token of secrets) item = item.replaceAll(token, "[redacted]");
       for (const token of data.secrets()) item = item.replaceAll(token, "[redacted]");
+      for (const token of controlSecrets.secrets()) item = item.replaceAll(token, "[redacted]");
       return item;
     }));
   }
   function snapshot() {
-    return { revision, controlToken, locale, projects: [...projects.values()].map(project => {
+    return { revision, controlToken, locale, watchdog: [...projects.values()].find(project => project.state?.watchdog)?.state.watchdog
+      || watchdogConfig(), projects: [...projects.values()].map(project => {
       const tasks = project.state?.tasks || [];
       return { id: project.entry.id, name: project.entry.name, cwd: project.entry.cwd,
         startedAt: project.entry.startedAt, online: project.online,
         counts: { running: tasks.filter(task => ["pending", "queued", "running"].includes(task.status)).length,
           completed: tasks.filter(task => task.status === "completed").length,
           failed: tasks.filter(task => ["error", "failed", "lost", "interrupted"].includes(task.status)).length,
+          stalled: tasks.filter(task => ["stalled", "steered"].includes(task.health?.state)).length,
+          questions: project.state?.questions?.length || 0,
           total: tasks.length } };
     }) };
   }
@@ -68,8 +76,10 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
         while ((boundary = buffer.indexOf("\n\n")) !== -1) {
           const lines = buffer.slice(0, boundary).split("\n");
           buffer = buffer.slice(boundary + 2);
-          if (lines.find(line => line.startsWith("event:"))?.slice(6).trim() !== "state") continue;
-          acceptState(project, JSON.parse(lines.filter(line => line.startsWith("data:")).map(line => line.slice(5).trimStart()).join("\n")));
+          const event = lines.find(line => line.startsWith("event:"))?.slice(6).trim();
+          const value = JSON.parse(lines.filter(line => line.startsWith("data:")).map(line => line.slice(5).trimStart()).join("\n"));
+          if (event === "state") acceptState(project, value);
+          else if (event === "watchdog" || event === "question") emit(event, { ...value, projectId: project.entry.id });
           received = true; project.retry = 0;
         }
       }
@@ -150,7 +160,12 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
           return new Response(file, { headers: { "Cache-Control": "no-store",
             "Content-Type": asset[2] === "js" ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8" } });
         }
-        if (request.method === "GET" && path === "/api/projects") return json(snapshot());
+        if (request.method === "GET" && path === "/api/projects") return json({ ...safe(snapshot()), controlToken });
+        if (path === "/api/watchdog") {
+          if (request.method !== "GET") return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
+          const result = await watchdogHistory(agentDir, url.searchParams);
+          return json(safe(result.value), result.status);
+        }
         if (dataEndpoints.has(path)) {
           if (request.method !== "GET") return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
           const result = data.response(path, url.searchParams);
@@ -160,7 +175,7 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
           let controller;
           return new Response(new ReadableStream({
             start(stream) {
-              controller = stream; streams.add(stream); stream.enqueue(encode("projects", snapshot()));
+              controller = stream; streams.add(stream); stream.enqueue(encode("projects", { ...safe(snapshot()), controlToken }));
               for (const project of projects.values()) if (project.state)
                 stream.enqueue(encode("state", { projectId: project.entry.id, state: project.state }));
               const initial = data.initial();
@@ -170,26 +185,26 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
             cancel() { streams.delete(controller); },
           }), { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
         }
-        const match = /^\/api\/projects\/([^/]+)\/(state|coordinator(?:\/message)?|tasks\/st_[A-Za-z0-9_-]+(?:\/(?:message|abort))?)$/.exec(path);
+        const match = /^\/api\/projects\/([^/]+)\/(state|coordinator(?:\/message)?|tasks\/st_[A-Za-z0-9_-]+(?:\/(?:message|abort))?|questions\/[^/]+\/answer)$/.exec(path);
         const project = match && projects.get(match[1]);
         if (!project) return json({ error: "Project not found.", code: "project_not_found" }, 404);
-        const control = /\/(message|abort)$/.test(match[2]);
+        const control = /\/(message|abort|answer)$/.test(match[2]);
         if (request.method !== (control ? "POST" : "GET")) return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
         if (control && (request.headers.get("X-OmO-Control") !== controlToken
           || request.headers.has("Origin") && request.headers.get("Origin") !== server.url.origin))
           return json({ error: "Control not authorized.", code: "unauthorized" }, 403);
         let body;
-        if (match[2].endsWith("/message")) {
+        if (match[2].endsWith("/message") || match[2].endsWith("/answer")) {
           try { body = await request.json(); }
           catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON.", code: "invalid_json" }, 400); throw error; }
-          if (typeof body?.text !== "string" || !body.text.trim() || body.text.length > 32_000)
+          if (match[2].endsWith("/message") && (typeof body?.text !== "string" || !body.text.trim() || body.text.length > 32_000))
             return json({ error: "Send a message of up to 32,000 characters.", code: "invalid_message" }, 400);
         }
         try {
           const upstream = await fetch(new URL(`/api/${match[2]}`, project.entry.url), {
             method: request.method, signal: AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]),
             headers: control ? { "X-OmO-Control": project.entry.token, "Content-Type": "application/json" } : {},
-            ...(body ? { body: JSON.stringify({ text: body.text }) } : {}),
+            ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
           });
           const value = await upstream.json();
           if (upstream.ok && match[2] === "state") acceptState(project, value);
@@ -204,7 +219,7 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
       },
     });
     await rescan();
-  } catch (error) { watcher.close(); server?.stop(true); await data.stop(); throw error; }
+  } catch (error) { watcher.close(); server?.stop(true); await data.stop(); await controlSecrets.stop(); throw error; }
   return { url: server.url.toString(), ready: data.ready,
     async stop() {
       stopped = true; watcher.close();
@@ -213,6 +228,7 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir, agentDi
       for (const stream of streams) stream.close();
       streams.clear(); server.stop(true);
       await data.stop();
+      await controlSecrets.stop();
     },
   };
 }

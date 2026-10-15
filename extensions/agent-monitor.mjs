@@ -91,9 +91,13 @@ export default function registerAgentMonitor(pi) {
     try { await start(ctx); }
     catch (error) { console.error("[agent-monitor] dashboard did not start:", error.message); }
   });
-  pi.on("turn_start", () => { monitor?.updateParent({ status: "working" }); });
-  pi.on("turn_end", () => { monitor?.updateParent({ status: "idle" }); });
+  pi.on("agent_start", () => { monitor?.updateParent({ status: "working" }); });
+  pi.on("turn_end", () => { monitor?.updateParent({ status: "working" }); });
+  pi.on("agent_settled", () => { monitor?.updateParent({ status: "idle" }); });
+  const offAsked = pi.events.on("ask-user:asked", event => { monitor?.questionAsked(event); });
+  const offClosed = pi.events.on("ask-user:closed", event => { monitor?.questionClosed(event); });
   pi.on("session_shutdown", async () => {
+    offAsked(); offClosed();
     try { if (starting) await starting; }
     finally { await stopReaders(); await monitor?.stop(); monitor = undefined; }
   });

@@ -1,5 +1,6 @@
 import { O, t, el, icon, chip, num, compact, ms, f, fin, usd, pct, timeNode, inferred, badge, panel, select, linkBtn, vs, repaint } from './core.js';
 import { dataTable } from './table.js';
+import { healthBadge, healthState, healthLabel, FLAGGED } from './health.js';
 
 const startOf = x => ms(x.startedAt) ?? ms(x.createdAt);
 function endOf(x) {
@@ -68,7 +69,10 @@ function table(pid, tasks, rows, s) {
       b.style.paddingLeft = Math.max(0, (x.depth || 1) - 1) * 14 + 'px';
       b.addEventListener('click', () => openTask(pid, x.id)); return b; } },
     { id: 'agent', label: t('tasks.col.agent'), get: x => x.agent || '' },
-    { id: 'status', label: t('tasks.col.status'), get: x => x.status, cell: x => chip(x.status) },
+    { id: 'status', label: t('tasks.col.status'), get: x => x.status, cell: x => {
+      const hb = healthBadge(x);
+      if (!hb) return chip(x.status);
+      const c = el('span', 'cell-sub'); c.append(chip(x.status), hb); return c; } },
     { id: 'model', label: t('tasks.col.model'), get: modelOf, cell: x => {
       const c = el('span', 'cell-sub'), m = el('span', 't mono', modelOf(x).split('/').pop() || t('common.noModel')); m.title = modelOf(x);
       c.append(m);
@@ -135,7 +139,14 @@ function gantt(pid, st, tasks, s, visible) {
       if (!visible.has(x.id)) bar.classList.add('g-dim');
       bar.style.left = X(a) + '%'; bar.style.width = Math.max(0, X(b ?? a) - X(a)) + '%';
       bar.setAttribute('aria-pressed', String(open === x.id));
-      const lbl = `${x.name || x.id} · ${O.has('status.' + x.status) ? t('status.' + x.status) : x.status} · ${fmtT(a)}–${fmtT(b ?? a)} · ${fin(runtime(x)) ? O.durShort(runtime(x)) : '—'}`;
+      const hs = healthState(x), since = ms(x.health?.since);
+      if (hs) bar.dataset.health = hs;
+      const lbl = `${x.name || x.id} · ${O.has('status.' + x.status) ? t('status.' + x.status) : x.status}${hs ? ' · ' + healthLabel(x) : ''} · ${fmtT(a)}–${fmtT(b ?? a)} · ${fin(runtime(x)) ? O.durShort(runtime(x)) : '—'}`;
+      if (FLAGGED.has(hs) && since != null && since >= from && since <= to) {
+        const mk = el('span', 'g-mark'); mk.dataset.health = hs; mk.style.left = X(since) + '%';
+        mk.title = t('wd.gantt', { time: fmtT(since) }); mk.setAttribute('aria-hidden', 'true');
+        track.append(mk);
+      }
       bar.title = lbl; bar.setAttribute('aria-label', lbl);
       bar.addEventListener('click', () => openTask(pid, x.id));
       track.append(bar);

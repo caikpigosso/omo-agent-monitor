@@ -893,6 +893,7 @@
       if (c.failed) meta.append(tag(t('p.failed',{count:c.failed}),'danger'));
       if (c.completed) meta.append(tag(t('p.completed',{count:c.completed})));
       if (!c.total) meta.append(tag(t('p.noAgents')));
+      meta.append(...(window.OMOUI?.projectMeta?.(p) || []));
       a.append(row,cwd,meta);
       return a;
     }
@@ -941,6 +942,7 @@
       if (!p.online) out.push(notice(t('main.offlineNotice')));
       // SessionState.errors arrive in English; only the known quota message is translated.
       for (const e of Array.isArray(st.errors) ? st.errors : []) out.push(notice(String(e) === QUOTA_STALE ? t('err.quotaStale') : String(e)));
+      out.push(...(window.OMOUI?.projectTop?.(pid,st) || []));
       if (app.route.tab !== 'flow' && TABS.includes(app.route.tab)) {
         out.push(...(window.OMOUI ? OMOUI.tab(app.route.tab,pid,st) : [stateBox(t('ui.loading'),'')]));
         return out;
@@ -964,7 +966,7 @@
       const left = el('div','phead-main'), title = el('div','phead-title');
       const on = el('span','conn'); on.dataset.tone = p.online ? 'success' : 'neutral';
       on.append(el('span','dot'),el('span','',p.online ? t('p.online') : t('p.offline')));
-      title.append(el('h1','',p.name || p.id),on);
+      title.append(el('h1','',p.name || p.id),on,...(window.OMOUI?.headBadges?.(p,st) || []));
       left.append(title,el('p','phead-cwd',p.cwd || t('common.noDir')));
       const q = st?.quota && typeof st.quota === 'object' ? st.quota : {};
       const names = {claude:'Claude',gpt:'GPT'};
@@ -1081,7 +1083,7 @@
       }
       wrap.append(svg);
       for (const key of order) {
-        const node = key === 'c' ? coordNode(coord,tasks,kids.get('c').length) : taskNode(byId.get(key.slice(2)));
+        const node = key === 'c' ? coordNode(coord,tasks,kids.get('c').length,st) : taskNode(byId.get(key.slice(2)));
         const p = pos.get(key);
         node.style.left = p.x + 'px'; node.style.top = p.y + 'px';
         node.style.width = narrow ? `calc(100% - ${p.x}px)` : W + 'px'; node.style.height = H + 'px';
@@ -1118,18 +1120,20 @@
       }
       return row;
     }
-    function coordNode(coord, tasks, direct) {
+    function coordNode(coord, tasks, direct, st) {
       const b = nodeShell('c',t('common.coordinator')); b.classList.add('coord');
+      const qb = window.OMOUI?.coordBadge?.(st);
       const r2 = el('span','n-row'); r2.append(chip(coord.status),el('span','t',t('flow.mainSession')));
       const r3 = el('span','n-row mono'); r3.append(el('span','t',coord.model || t('common.noModel')));
-      const r4 = el('span','n-row'); r4.append(el('span','t',`${t('flow.direct',{count:direct})} · ${t('common.inTotal',{n:num(tasks.length)})}`));
+      const r4 = el('span','n-row'); r4.append(...(qb ? [qb] : []),el('span','t',`${t('flow.direct',{count:direct})} · ${t('common.inTotal',{n:num(tasks.length)})}`));
       const running = tasks.filter(task => task.status === 'running').length;
       b.append(r2,r3,r4,statsRow([['bot',num(running),t('flow.runningAgents')],['tool',num(tasks.reduce((s,task) => s + (task.toolCount || 0),0)),t('flow.coordTools')]]));
       return b;
     }
     function taskNode(task) {
       const b = nodeShell('t:' + task.id,task.name || task.id);
-      const r2 = el('span','n-row'); r2.append(chip(task.status),el('span','t',task.agent || t('common.agentLower')));
+      const hb = window.OMOUI?.healthBadge?.(task,true);
+      const r2 = el('span','n-row'); r2.append(chip(task.status),...(hb ? [hb] : []),el('span','t',task.agent || t('common.agentLower')));
       const r3 = el('span','n-row mono'); r3.append(el('span','t',[task.provider,task.model].filter(Boolean).join(' / ') || t('common.noModel')));
       const r4 = el('span','n-row');
       if (task.status === 'running' && task.current) {
@@ -1292,6 +1296,7 @@
         if (!task) meta.push(el('span','',t('detail.notInState')));
         else {
           meta.push(chip(task.status));
+          const hb = window.OMOUI?.healthBadge?.(task); if (hb) meta.push(hb);
           if (task.agent) meta.push(metaItem('bot',task.agent,t('detail.agentType')));
           meta.push(metaItem('cpu',[task.provider,task.model].filter(Boolean).join(' / ') || t('common.noModel'),t('common.model')));
           meta.push(metaItem('clock',dur(elapsed(task)),t('detail.duration')),metaItem('hash',t('detail.tokens',{n:compact(task.tokens)}),t('m.tokens')),metaItem('tool',t('detail.tools',{count:task.toolCount}),t('detail.toolCalls')));
@@ -1365,6 +1370,7 @@
       if (isTask) {
         const instr = detail.data.instruction || detail.data.timeline?.find?.(e => e?.kind === 'instruction')?.text || '';
         out.push(pinned(instr));
+        out.push(...(window.OMOUI?.watchdogSection?.(taskOf(r.pid,r.target.id) || detail.data.task) || []));
       }
       const all = normalizedTimeline().filter(e => !(isTask && e.kind === 'instruction'));
       const q = detail.search.trim().toLowerCase();
@@ -1689,11 +1695,12 @@
     events.addEventListener('projects',streamEvent(acceptProjects));
     events.addEventListener('state',streamEvent(m => acceptState(m?.projectId,m?.state)));
     events.addEventListener('activity',streamEvent(handleActivity));
-    for (const type of ['usage','accounts']) events.addEventListener(type,streamEvent(m => window.OMOUI?.onEvent(type,m)));
+    for (const type of ['usage','accounts','question','watchdog']) events.addEventListener(type,streamEvent(m => window.OMOUI?.onEvent(type,m)));
     // Bridge for the v1.2 view modules in /ui/*.js (tasks, plan, usage, overview, accounts).
     window.OMO = { app, I18N, t, has, lang:() => lang, fmt:() => fmt, el, icon, chip, tag, stateBox, notice, num, compact, dur, durShort,
       ms, clock, elapsed, shortPath, hashFor, navigate, project, stateOf, taskOf, renderMain, rerender, errMsg, apiError,
-      STATUS_TONE, TERMINAL, FAILED, ICONS, streamLive };
+      STATUS_TONE, TERMINAL, FAILED, ICONS, streamLive, fetchState, renderSidebar,
+      refreshDetail:() => { if (detailTarget()) { renderDetailHeader(); renderDetailBody('keep'); } } };
     if (detailTarget()) openDetail();
     loadProjects();
     window.addEventListener('pagehide',() => { events.close(); detail.ctrl?.abort(); },{once:true});

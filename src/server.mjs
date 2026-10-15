@@ -6,6 +6,9 @@ import { agentDir as defaultAgentDir, runDir as defaultRunDir } from "./paths.mj
 import { parseTranscript, textOf } from "./transcript.mjs";
 import { buildTaskView } from "./task-view.mjs";
 import { buildPlan, readGoal } from "./plan.mjs";
+import { startWatchdog } from "./watchdog.mjs";
+import { watchdogSignals } from "./watchdog-signals.mjs";
+import { startQuestions } from "./questions.mjs";
 export { parseTranscript } from "./transcript.mjs";
 
 // Optional quota source: a module exporting readCoordinator() (e.g. a personal omo-auto launcher).
@@ -18,7 +21,7 @@ async function loadQuotaReader(agentDir) {
 
 const terminalStates = new Set(["completed", "error", "failed", "lost", "cancelled", "interrupted"]);
 const json = (value, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
-const packet = value => new TextEncoder().encode(`event: state\ndata: ${JSON.stringify(value)}\n\n`);
+const packet = (value, event = "state") => new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(value)}\n\n`);
 async function optionalRead(path) { try { return await readFile(path, "utf8"); }
   catch (error) { if (error.code === "ENOENT") return ""; throw error; }
 }
@@ -34,10 +37,17 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
   const controlToken = randomBytes(32).toString("hex"), startedAt = new Date().toISOString();
   let server, store, storeWatcher, revision = 0, stopped = false, refreshing, dirty = false, snapshot, fingerprint;
   let coordinator = parseTranscript(""), dags = [];
+  function emit(event, value) {
+    for (const stream of streams) stream.enqueue(packet({ projectId: parentId, ...value }, event));
+  }
+  const watchdog = await startWatchdog({ agentDir, parentId, cwd, executeTool, sendUserMessage,
+    onChange(value) { emit("watchdog", value); dirty = true; if (server) changed(); } });
+  const questions = await startQuestions({ agentDir, parentId, emit: value => emit("question", value),
+    changed() { dirty = true; if (server) changed(); } });
   function taskView(record) {
     const detail = transcripts.get(record.task_id) || parseTranscript("");
-    return buildTaskView(record, detail, { lineage: lineage.get(record.task_id), dags,
-      snapshots: coordinator.todoSnapshots });
+    return { ...buildTaskView(record, detail, { lineage: lineage.get(record.task_id), dags,
+      snapshots: coordinator.todoSnapshots }), health: watchdog.health(record.task_id) };
   }
   async function rebuild() {
     const registry = await optionalRead(registryPath);
@@ -67,6 +77,7 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
         added = true;
       }
     }
+    const healthBatch = [];
     const nextTranscripts = new Map(await Promise.all([...nextRecords.values()].map(async record => {
       let path = record.host_session?.session_path;
       if (!path && record.child_session_id) {
@@ -75,8 +86,12 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
         if (filename) path = join(directory, filename);
       }
       record.sessionPath = path;
-      return [record.task_id, parseTranscript(path ? await optionalRead(path) : "")];
+      const transcript = path ? await optionalRead(path) : "";
+      const log = await optionalRead(join(store, "logs", `${record.task_id}.jsonl`));
+      healthBatch.push({ record, signals: watchdogSignals(transcript, log) });
+      return [record.task_id, parseTranscript(transcript)];
     })));
+    await watchdog.update(healthBatch);
     coordinator = parseTranscript(sessionFile ? await optionalRead(sessionFile) : "");
     dags = [];
     for (const filename of store ? await filesIn(join(store, "dag", "runs")) : []) {
@@ -91,7 +106,7 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
     }
     const quota = readCoordinator ? await readCoordinator() : { kind: "none" };
     records = nextRecords; lineage = nextLineage; transcripts = nextTranscripts;
-    const next = { connection: "live", controlToken,
+    const next = { connection: "live", controlToken, watchdog: watchdog.config, questions: questions.list(),
       parents: [{ id: parentId, name: "OmO coordinator", cwd, project: basename(cwd),
         model: coordinator.model ? `${coordinator.model.provider}/${coordinator.model.model}` : model, status }],
       tasks: [...records.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(taskView), dags,
@@ -132,6 +147,18 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
           start(stream) { controller = stream; streams.add(stream); stream.enqueue(packet(snapshot)); },
           cancel() { streams.delete(controller); },
         }), { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
+      }
+      const question = /^\/api\/questions\/([^/]+)\/answer$/.exec(path);
+      if (question) {
+        if (request.method !== "POST") return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
+        if (request.headers.get("X-OmO-Control") !== controlToken
+          || request.headers.has("Origin") && request.headers.get("Origin") !== server.url.origin)
+          return json({ error: "Control not authorized.", code: "unauthorized" }, 403);
+        let body;
+        try { body = await request.json(); }
+        catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON.", code: "invalid_json" }, 400); throw error; }
+        const result = await questions.answer(decodeURIComponent(question[1]), body);
+        return json(result.value, result.status);
       }
       const match = /^\/api\/tasks\/(st_[A-Za-z0-9_-]+)(?:\/(message|abort))?$/.exec(path);
       const isCoordinator = path === "/api/coordinator" || path === "/api/coordinator/message";
@@ -181,8 +208,11 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
   await chmod(registration, 0o600);
   return { url: server.url.toString(),
     updateParent(value) { ({ status, model, sessionFile } = { status, model, sessionFile, ...value }); changed(); },
+    questionAsked: questions.ask,
+    questionClosed: questions.close,
     async stop() {
       stopped = true; for (const watcher of watchers) watcher.close(); storeWatcher?.close();
+      await questions.stop(); await watchdog.stop();
       if (refreshing) await refreshing;
       for (const stream of streams) stream.close();
       streams.clear(); server.stop(true); await unlink(registration);

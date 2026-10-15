@@ -70,6 +70,20 @@ No navegador:
   medidores de cota (5h, 7d...) com contagem até reiniciar, histórico de cota
   desenhado sobre o uso de tokens no mesmo eixo de tempo, ritmo de consumo e
   previsão de esgotamento.
+- **Perguntas:** quando um coordenador pergunta algo, o projeto, o coordenador e
+  a Visão geral mostram *Aguardando você*. Responda ali mesmo (opções, texto
+  livre, comentário) e a resposta chega ao agente como se tivesse sido digitada
+  no terminal. Notificações do navegador opcionais. No OmO 5.1.33, só as
+  perguntas feitas sem bloquear a sessão (`waitForAnswer: false`) podem ser
+  respondidas pela web: o OmO não expõe as perguntas bloqueantes ao canal de
+  controle, então elas aparecem com *Responda no terminal* e passam a ser
+  respondíveis pela web sozinhas quando o OmO expô-las.
+- **Vigia de travamentos:** quando um agente erra seguidamente no stream do
+  provedor ou fica sem progresso esperando o modelo, o painel marca *Travado*,
+  pede que ele salve o trabalho e continue em partes pequenas e, se ele continuar
+  preso, cancela e pede ao coordenador para dividir o restante em 2 a 4 tarefas
+  menores. Builds longos e outros comandos em execução nunca contam como
+  travamento.
 - **Estimativas marcadas:** o OmO não registra qual conta Anthropic atendeu cada
   resposta, a que item do plano uma tarefa pertence nem a cota futura. O painel
   deduz isso pelo horário e marca como *estimado*. O histórico de cota começa
@@ -101,6 +115,10 @@ encerrar o processo: `pkill -f omo-agent-monitor/src/hub.mjs`.
 | Variável | Padrão | Uso |
 | --- | --- | --- |
 | `OMO_MONITOR_LANG` | `en` | Idioma padrão: `en` ou `pt-BR`. |
+| `OMO_MONITOR_WATCHDOG` | `auto` | `auto` (alerta, orienta e depois cancela e pede ao coordenador para dividir), `steer` (nunca cancela), `alert` ou `off`. |
+| `OMO_MONITOR_STALL_ERRORS` | `2` | Erros seguidos no stream do provedor que contam como travamento. |
+| `OMO_MONITOR_STALL_MINUTES` | `12` | Minutos sem progresso esperando o modelo. |
+| `OMO_MONITOR_STALL_GRACE_MINUTES` | `8` | Minutos depois da orientação antes de cancelar. |
 | `OMO_MONITOR_PORT` | `47800` | Porta da central. |
 | `OMO_MONITOR_RUN_DIR` | `~/.omo/agent/agent-monitor/run` | Onde cada sessão se registra. |
 | `PI_CODING_AGENT_DIR` | `~/.omo/agent` | Pasta de configuração do OmO, se você usa outra. |

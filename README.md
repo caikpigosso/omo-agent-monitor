@@ -68,6 +68,19 @@ In the browser:
 - **Accounts:** how many accounts you have, which one is active, blocks and
   expiry, quota gauges (5h, 7d...) with reset countdowns, quota history drawn
   over token usage on the same time axis, burn rate and projected exhaustion.
+- **Questions:** when a coordinator asks you something, the project, its
+  coordinator and Overview show *Waiting for you*. Answer right there (options,
+  free text, comment) and the answer reaches the agent exactly as if typed in the
+  terminal. Optional browser notifications. With OmO 5.1.33, only questions
+  asked without blocking the session (`waitForAnswer: false`) can be answered
+  on the web: OmO does not expose blocking questions to its control endpoint,
+  so those are shown with *Answer in the terminal* and become answerable on the
+  web automatically once OmO exposes them.
+- **Stall watchdog:** when an agent keeps failing on the provider stream or makes
+  no progress while waiting on the model, the dashboard marks it *Stalled*, tells
+  it to save its work and continue in small steps, and, if it is still stuck,
+  cancels it and asks the coordinator to split the remaining work into 2-4
+  smaller tasks. Long builds and other running commands never count as a stall.
 - **Estimates are labelled:** OmO does not record which Anthropic account served
   each reply, which plan item a task belongs to, or future quota. The dashboard
   infers these from timing and marks them as *inferred*. Quota history starts
@@ -100,6 +113,10 @@ keep running until you restart the computer or stop it:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OMO_MONITOR_LANG` | `en` | Default language: `en` or `pt-BR`. |
+| `OMO_MONITOR_WATCHDOG` | `auto` | `auto` (alert, steer, then cancel and ask the coordinator to split), `steer` (never cancels), `alert` or `off`. |
+| `OMO_MONITOR_STALL_ERRORS` | `2` | Consecutive provider stream errors that count as a stall. |
+| `OMO_MONITOR_STALL_MINUTES` | `12` | Minutes without progress while waiting on the model. |
+| `OMO_MONITOR_STALL_GRACE_MINUTES` | `8` | Minutes after the steer before cancelling. |
 | `OMO_MONITOR_PORT` | `47800` | Hub port. |
 | `OMO_MONITOR_RUN_DIR` | `~/.omo/agent/agent-monitor/run` | Where each session registers. |
 | `PI_CODING_AGENT_DIR` | `~/.omo/agent` | OmO config directory, if you use another one. |

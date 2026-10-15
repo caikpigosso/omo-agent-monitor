@@ -215,3 +215,63 @@ type Insights = {
 // topTasks/projects read every task record on disk (<agentDir>/projects/*/senpi-task/tasks/*.json),
 // not only open sessions. projectId is set when that project has an open session in the hub.
 ```
+
+## v1.3 additions: stall watchdog and questions on the web
+
+### Stall watchdog (runs inside each session server)
+
+Config (env, read once at session start; the hub reports it):
+`OMO_MONITOR_WATCHDOG` = `auto` (default) | `steer` | `alert` | `off`;
+`OMO_MONITOR_STALL_ERRORS` (default 2 consecutive provider stream errors);
+`OMO_MONITOR_STALL_MINUTES` (default 12, fractional allowed: no progress while the agent is waiting on the model);
+`OMO_MONITOR_STALL_GRACE_MINUTES` (default 8, after the steer, before cancelling).
+
+Signals per running task, from its transcript and task log:
+- provider stream errors: assistant messages with `stopReason: "error"` whose `errorMessage` matches idle/stream/WebSocket timeouts or closes, and `child_error` log records; reset by any successful assistant message.
+- progress: any new tool call, tool result or non-error assistant message. Time spent inside an unfinished tool call (a long build) is NOT a stall; only waiting on the model counts.
+- writes: tool calls whose name is write/edit/apply_patch-like (record the target paths for the coordinator note).
+
+States and actions (one escalation per task, persisted in `<agentDir>/agent-monitor/watchdog.jsonl` so restarts never repeat an action):
+1. `stalled` (reason `provider_errors` | `no_progress`) -> action `alert` (all modes except off).
+2. `steered` -> action `steer` (modes steer/auto): `task_send` to the agent with a fixed message: save what you have now, then work in small increments, never more than ~250 lines per tool call, keep each tool call short.
+3. `cancelled` -> (mode auto, still no progress after the grace period) action `cancel` (`task_cancel`, reason names the watchdog) then `coordinator_notified`: `pi.sendUserMessage(text, { deliverAs: "followUp" })` with: task name/id/agent, reason and timing, paths it wrote, and the instruction to re-plan the remaining work as 2-4 smaller tasks (one file or view each, increments of <=250 lines per tool call) and spawn them.
+4. `recovered` when progress resumes after stalled/steered (no further action).
+Timers: one setTimeout armed for the next deadline, re-armed on every change. No polling loops.
+
+```ts
+type TaskHealth = { state: "ok" | "stalled" | "steered" | "cancelled" | "recovered";
+  reason?: "provider_errors" | "no_progress"; since?: string; consecutiveErrors: number;
+  lastProgressAt?: string; lastWriteAt?: string; waitingOnModelSince?: string;
+  actions: Array<{ at: string; kind: "alert" | "steer" | "cancel" | "coordinator_notified"; detail?: string }> };
+// TaskView gains: health: TaskHealth
+// ProjectsSnapshot gains: watchdog: { mode: string; stallErrors: number; stallMinutes: number; graceMinutes: number }
+//   and projects[].counts gains stalled: number, questions: number
+// SSE gains: event "watchdog" { projectId, taskId, health }  (emitted on every state change or action)
+// GET /api/watchdog?from=ISO&to=ISO -> { events: Array<{ at, projectId, project, taskId, taskName, kind, state, reason?, detail? }> }
+```
+
+### Questions on the web
+
+Only coordinators ask (subagents cannot). OmO's thread component already registers the terminal control
+endpoint (`<agentDir>/rpc/tui/t-<16hex>.sock` + secret file beside it, registry `endpoint_kind: "tui"`); the
+monitor must NOT register another. The session server is a client of its own terminal's endpoint: find the
+endpoint whose `list_sessions` row is this session, send the secret first, then LF-delimited JSON.
+Pending questions come from `pi.events.on("ask-user:asked" | "ask-user:closed")` in-process, plus the
+endpoint's `get_state`/`subscribe` (`question` feed) to recover questions pending before the monitor started.
+
+```ts
+type PendingQuestion = { requestId: string;            // the uiRequestId to answer
+  askedAt: string; deadlineAt?: string; blocking: boolean;
+  questions: Array<{ id: string; header: string; question: string; multiSelect: boolean;
+    options: Array<{ label: string; description?: string }> }>;
+  answerable: boolean };                               // false when no control endpoint is reachable
+// SessionState gains: questions: PendingQuestion[]   (pending only)
+// POST /api/projects/:pid/questions/:requestId/answer  (hub -> session server, X-OmO-Control like other controls)
+//   body { answers: Record<questionId, { selected: string[]; text?: string }>, comment?: string } | { cancelled: true }
+//   -> { ok: true, outcome: "answered" | "comment-submitted" | "cancelled" }
+//   errors (code): question_already_resolved, question_unknown, question_incomplete, question_invalid,
+//   question_bridge_unavailable
+// SSE gains: event "question" { projectId, requestId, kind: "asked" | "closed", status? }
+```
+The answer is sent as `{ type: "extension_ui_response", id, uiRequestId: requestId, answers, comment }`
+(or `cancelled: true`), so it reaches the model exactly like a terminal answer (`resolvedBy: control_endpoint`).

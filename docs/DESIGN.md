@@ -231,3 +231,56 @@ Code: `src/ui/*.js` ES modules (served flat at `/ui/<name>.js`) plus
 - **Accepted debt:** the Gantt time brush is pointer-only (phase chips
   are the keyboard path); tables scroll horizontally inside their card on
   phones; the burn-up shows every todo re-plan as a drop in done.
+
+## 11. v1.3 views (questions, watchdog, needs attention)
+Code: `src/ui/questions.js`, `health.js`, `attention.js`, `notify.js`, copy in
+`src/ui/i18n-v13.js` (same flat keys in both locales). `index.html` only calls
+`OMOUI.projectMeta / headBadges / coordBadge / healthBadge / projectTop /
+watchdogSection` and forwards the `question` and `watchdog` SSE events.
+- **Waiting-for-you badge:** warning tone pill = live dot + "Waiting for you" +
+  count; aria-label/title spell the count out. On the sidebar row and the
+  coordinator node it is a plain span (inside a link/button); in the project
+  header it is a button that scrolls to and focuses the questions panel.
+  Count = pending questions in SessionState, else `counts.questions`.
+- **Questions panel:** first panel of every project tab while a question is
+  pending. One card per PendingQuestion: asked time, Blocking badge, deadline
+  countdown (danger "Deadline passed" after it), then one fieldset per
+  question (header in small caps, question text 16-18px, option tiles with
+  description; radio when `multiSelect` is false, checkboxes otherwise; checked
+  tile = wash-strong, never a coloured border), an "Other" text field (in
+  single-select it clears the radio and vice versa), one optional comment,
+  Dismiss (secondary danger, inline confirm whose default focus is "Keep it")
+  and Submit (primary). Every question needs an option or Other text; a
+  comment alone is sent as `answers: {}` + comment. Success notice only after
+  `ok:true` (outcome mapped), refusals inline by code with the draft kept;
+  drafts survive re-renders and language switches. `answerable:false` =
+  options disabled, terminal icon + "Answer in the terminal". A draft whose
+  question vanished without our submit reports "closed outside the dashboard".
+- **Health badge:** Stalled (warning), Steered (info), Cancelled by watchdog
+  (danger), Recovered (success); `ok` shows nothing. Title/aria = state, reason
+  and since. Shown on flow nodes (status row), the Tasks status cell and the
+  detail meta. Gantt: stalled/steered bars hatched, a warning (cancelled:
+  danger) pin at `health.since`; the bar label names the state.
+- **Watchdog section** (agent detail, Activity tab, under the instruction, only
+  when health is not ok or has actions): reason, since, consecutive errors,
+  waiting-on-model, last progress, last write, then the actions timeline
+  (dot colour by kind, `detail` verbatim in mono) and the read-only mode line.
+- **Needs attention** (Overview, after the header): Questions rows (project,
+  header, first line, +N, countdown or asked-ago; click focuses the panel) and
+  Agents rows (stalled/steered/cancelled tasks; click opens the agent); projects
+  without a loaded state fall back to their counts. Then the last 8
+  `/api/watchdog` actions of 24 h and the mode line: `ProjectsSnapshot.watchdog`
+  mode with a one-sentence explanation using its thresholds, plus how to set it.
+- **Notifications:** "Notifications" switch in the sidebar footer, off by
+  default; permission is requested only from that click; choice in
+  localStorage `omo-monitor-notify`. Fires only while the tab is hidden or
+  unfocused, for `question` asked and `watchdog` stalled/cancelled; clicking a
+  notification focuses the tab and opens the project/agent.
+- **Live:** `question` refetches that project's state (the stale fetch is
+  aborted); `watchdog` patches the task's health in place and repaints the
+  project and open detail; Overview repaints only when the attention signature
+  changes. The 1 s countdown interval stops while the page is hidden.
+- **Accepted debt:** health badges inside flow nodes use short labels
+  (Stalled / Steered / Watchdog / Recovered), may ellipsize in a crowded status
+  row and carry the reason in the title only (nodes are buttons); notifications
+  are not shown while the tab is focused.
