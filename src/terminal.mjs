@@ -1,5 +1,7 @@
 import { createInterface, clearLine, cursorTo } from "node:readline";
 import { stripVTControlCharacters } from "node:util";
+import { locale } from "./paths.mjs";
+import { text } from "./messages.mjs";
 
 const args = Bun.argv.slice(2);
 const option = (name) => args[args.indexOf(name) + 1];
@@ -14,7 +16,7 @@ let state, busy = false, lastRevision = -1;
 const printed = new Set();
 const abort = new AbortController();
 const rl = createInterface({ input: process.stdin, output: process.stdout });
-rl.setPrompt(taskId ? "mensagem> " : "monitor> ");
+rl.setPrompt(taskId ? text.messagePrompt : "monitor> ");
 
 function output(text) {
   if (process.stdout.isTTY) {
@@ -53,7 +55,7 @@ async function syncPanes(snapshot) {
     }
     const pane = await tmux([
       "split-window", "-d", "-P", "-F", "#{pane_id}", "-t", sessionName,
-      "env", "BUN_BE_BUN=1", process.execPath, import.meta.path, "--url", address.toString(),
+      "env", "BUN_BE_BUN=1", `OMO_MONITOR_LANG=${locale}`, process.execPath, import.meta.path, "--url", address.toString(),
       "--task", task.id,
     ]);
     panes.set(task.id, pane);
@@ -87,14 +89,14 @@ async function control(action, text) {
   });
   const data = await response.json();
   if (!response.ok || data.ok !== true) throw new Error(data.error || `HTTP ${response.status}`);
-  output(action === "message" ? "Mensagem confirmada pelo OmO." : "Interrupcao confirmada pelo OmO.");
+  output(action === "message" ? text.messageConfirmed : text.abortConfirmed);
 }
 
 rl.on("line", async input => {
-  if (busy) { output("Aguarde a confirmacao anterior."); return; }
+  if (busy) { output(text.waitPrevious); return; }
   if (!input.trim()) { rl.prompt(); return; }
   if (input === "/quit") { abort.abort(); rl.close(); return; }
-  if (!taskId) { output("Escolha o painel do agente com Ctrl+B e as setas; Ctrl+B Z amplia."); return; }
+  if (!taskId) { output(text.pickPane); return; }
   busy = true;
   try {
     if (input === "/output") {
@@ -102,15 +104,15 @@ rl.on("line", async input => {
       await showTask();
     } else await control(input === "/abort" ? "abort" : "message", input);
   } catch (error) {
-    output(`Recusado: ${error.message}`);
+    output(`${text.refused}: ${error.message}`);
     if (input !== "/abort" && input !== "/output") rl.write(input);
   } finally { busy = false; rl.prompt(true); }
 });
 rl.on("SIGINT", () => { abort.abort(); rl.close(); });
 
 output(taskId
-  ? "OmO agente | texto envia mensagem | /abort interrompe | /output | /quit"
-  : "OmO agentes | paineis somente de observacao e controle; nenhum executor duplicado.");
+  ? text.agentHeader
+  : text.listHeader);
 try {
   const response = await fetch(new URL("/api/events", address), { signal: abort.signal });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -132,7 +134,7 @@ try {
       } else {
         output(snapshot.tasks.map(task =>
           `${task.id} ${task.status} ${task.name} ${task.provider}/${task.model}`).join("\n")
-          || "Nenhum agente nesta sessao.");
+          || text.noAgents);
         if (sessionName) await syncPanes(snapshot);
       }
     }

@@ -54,14 +54,21 @@ POSTs require header `X-OmO-Control: <ProjectsSnapshot.controlToken>` and, when
 present, `Origin` equal to the hub origin; otherwise 403. The hub forwards to
 the session server with that session's own token. Responses:
 `{ "ok": true, "outcome": "steered|revived|queued|cancelled|delivered" }` or
-`{ "error": "mensagem em pt-BR" }` with 4xx/5xx. Text limit 32,000 chars.
-Unknown project -> 404 `{ "error": "Projeto nao encontrado." }`.
+`{ "error": "<English message>", "code": "<stable code>" }` with 4xx/5xx. Text limit
+32,000 chars. Unknown project -> 404 `{ "error": "Project not found.", "code": "project_not_found" }`.
+
+Error codes (the UI translates by code and falls back to `error`): `unauthorized`,
+`task_not_found`, `project_not_found`, `method_not_allowed`, `agent_finished`,
+`invalid_json`, `invalid_message`, `coordinator_unavailable`, `control_failed`,
+`control_rejected` (`error` carries the native OmO reason), `request_cancelled`,
+`session_unavailable`.
 
 ## Types
 
 ```ts
 type ProjectsSnapshot = {
   revision: number; controlToken: string;
+  locale: "en" | "pt-BR";                 // default UI language, from OMO_MONITOR_LANG (default "en")
   projects: Array<{
     id: string; name: string; cwd: string; startedAt: string;
     online: boolean;                       // session server reachable

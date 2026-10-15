@@ -1,125 +1,118 @@
 # OmO Agent Monitor
 
-Painel local e ao vivo para os agentes do [OmO](https://omo.dev). Ele junta todas
-as sessões abertas num só lugar e mostra o fluxo de cada projeto: coordenador,
-agentes e subagentes. Para cada agente aparecem a instrução, o que ele está
-fazendo agora e cada comando com argumentos e resultado. Pelo painel você também
-manda orientações e interrompe agentes.
+A live, local dashboard for [OmO](https://omo.dev) agents. It brings every open
+session together in one place and shows each project's flow: the coordinator,
+its agents and sub-agents. For every agent you see its instruction, what it is
+doing right now, and each tool call with its arguments and result. From the
+dashboard you can also steer agents and stop them.
 
-![Painel com o fluxo de agentes e a linha do tempo de comandos](docs/screenshot.png)
+**English** | [Português](README.pt-BR.md)
 
-*English summary at the end.*
+![Dashboard with the agent flow and the tool-call timeline](docs/screenshot.png)
 
-## Instalação
+## Install
 
 ```sh
 omo install git:github.com/caikpigosso/omo-agent-monitor
 ```
 
-Abra uma sessão nova do OmO. O painel sobe sozinho; para ver o endereço, rode
-dentro da sessão:
+Open a new OmO session. The dashboard starts on its own; to get its address, run
+this inside the session:
 
 ```text
 /monitor
 ```
 
-Abra **http://127.0.0.1:47800/** no navegador. Cada sessão nova do OmO aparece
-lá automaticamente, mesmo em projetos diferentes.
+Open **http://127.0.0.1:47800/** in your browser. Every new OmO session shows up
+there automatically, even across different projects.
 
-Para testar sem instalar, só nesta execução:
+To try it without installing, for this run only:
 
 ```sh
 omo -e git:github.com/caikpigosso/omo-agent-monitor
 ```
 
-### Requisitos
+### Requirements
 
-- OmO 5.1.33 (versão testada). Testado no macOS; no Linux deve funcionar, mas
-  ainda não foi testado.
-- `tmux`, só se quiser os painéis no terminal (`/monitor tmux`).
-- Nada mais: o painel roda pelo próprio binário do OmO, sem precisar de Bun,
-  Node ou `npm install`.
+- OmO 5.1.33 (tested version). Tested on macOS; Linux should work but has not
+  been tested yet.
+- `tmux`, only for the terminal panes (`/monitor tmux`).
+- Nothing else: the dashboard runs on OmO's own binary, with no Bun, Node or
+  `npm install` needed.
 
-## Uso
+## Usage
 
-| Comando | O que faz |
+| Command | What it does |
 | --- | --- |
-| `/monitor` | Mostra o link do painel para esta sessão. |
-| `/monitor tmux` | Também abre uma sessão tmux com um painel por agente; digite para orientar o agente, `/abort` interrompe. |
-| `/monitor stop` | Fecha os leitores tmux desta sessão. O painel e os agentes continuam. |
+| `/monitor` | Shows the dashboard link for this session. |
+| `/monitor tmux` | Also opens a tmux session with one pane per agent; type to steer the agent, `/abort` stops it. |
+| `/monitor stop` | Closes this session's tmux readers. The dashboard and the agents keep running. |
 
-No navegador:
+In the browser:
 
-- **Projetos:** a lista lateral mostra todas as sessões abertas, se estão online
-  e quantos agentes estão rodando, concluídos ou com falha.
-- **Fluxo:** clique num nó (coordenador ou agente) para abrir o detalhe.
-- **Atividade:** a instrução fica no topo; cada comando abre para mostrar os
-  argumentos e o resultado. Há filtros (Tudo, Comandos, Erros) e busca.
-- **Controles:** mande uma orientação ao agente (Cmd/Ctrl+Enter), interrompa o
-  agente ou fale com o coordenador do projeto.
-- **Temas:** claro, escuro ou do sistema; funciona no celular também.
+- **Projects:** the sidebar lists every open session, whether it is online, and
+  how many agents are running, finished or failed.
+- **Flow:** click a node (coordinator or agent) to open its details.
+- **Activity:** the instruction is pinned at the top; each tool call expands to
+  show its arguments and result. Filters (All, Commands, Errors) and search.
+- **Controls:** send the agent a message (Cmd/Ctrl+Enter), stop the agent, or
+  talk to the project's coordinator.
+- **Themes:** light, dark or system; works on phones too.
+- **Language:** English by default. Switch to Portuguese with the **Language**
+  selector in the sidebar; the choice is saved in the browser. To make Portuguese
+  the default everywhere, including `/monitor` and tmux, set
+  `OMO_MONITOR_LANG=pt-BR` before starting OmO.
 
-## Atualizar e remover
+## Update and remove
 
-Para atualizar, remova e instale de novo; depois abra uma sessão nova:
+To update, remove and install again, then open a new session:
 
 ```sh
 omo remove git:github.com/caikpigosso/omo-agent-monitor
 omo install git:github.com/caikpigosso/omo-agent-monitor
 ```
 
-Para remover de vez, rode só o primeiro comando. Ao remover, a central pode continuar rodando até você reiniciar o computador ou
-encerrar o processo: `pkill -f omo-agent-monitor/src/hub.mjs`.
+To remove it for good, run only the first command. After removal the hub may
+keep running until you restart the computer or stop it:
+`pkill -f omo-agent-monitor/src/hub.mjs`.
 
-## Configuração (opcional)
+## Configuration (optional)
 
-| Variável | Padrão | Uso |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `OMO_MONITOR_PORT` | `47800` | Porta da central. |
-| `OMO_MONITOR_RUN_DIR` | `~/.omo/agent/agent-monitor/run` | Onde cada sessão se registra. |
-| `PI_CODING_AGENT_DIR` | `~/.omo/agent` | Pasta de configuração do OmO, se você usa outra. |
-| `OMO_MONITOR_QUOTA_MODULE` | — | Módulo que exporta `readCoordinator()` para mostrar cotas no topo. |
+| `OMO_MONITOR_LANG` | `en` | Default language: `en` or `pt-BR`. |
+| `OMO_MONITOR_PORT` | `47800` | Hub port. |
+| `OMO_MONITOR_RUN_DIR` | `~/.omo/agent/agent-monitor/run` | Where each session registers. |
+| `PI_CODING_AGENT_DIR` | `~/.omo/agent` | OmO config directory, if you use another one. |
+| `OMO_MONITOR_QUOTA_MODULE` | — | Module exporting `readCoordinator()` to show quotas in the header. |
 
-## Como funciona
+## How it works
 
-Cada sessão do OmO sobe um servidor interno numa porta aleatória e se registra
-em `~/.omo/agent/agent-monitor/run/`. Uma central em `127.0.0.1:47800` lê esse
-registro, acompanha cada sessão ao vivo e serve a página. A central continua
-rodando quando a sessão que a abriu termina, e a próxima sessão reaproveita a
-mesma. Os detalhes da API estão em [docs/API.md](docs/API.md) e o design em
+Each OmO session starts an internal server on a random port and registers it in
+`~/.omo/agent/agent-monitor/run/`. A hub on `127.0.0.1:47800` reads that
+registry, follows each session live and serves the page. The hub keeps running
+when the session that started it ends, and the next session reuses it. API
+details are in [docs/API.md](docs/API.md) and the design in
 [docs/DESIGN.md](docs/DESIGN.md).
 
-## Segurança
+## Security
 
-- Tudo escuta só em `127.0.0.1`; nada sai da sua máquina.
-- Mandar mensagens e interromper agentes exige um token gerado a cada vez que a
-  central sobe, e pedidos de outras origens são recusados.
-- A leitura não exige token: qualquer programa rodando na sua máquina consegue
-  ler as transcrições pelo endereço local. Não use em máquinas compartilhadas.
+- Everything listens on `127.0.0.1` only; nothing leaves your machine.
+- Sending messages and stopping agents require a token generated each time the
+  hub starts, and requests from other origins are refused.
+- Reading needs no token: any program running on your machine can read the
+  transcripts through the local address. Do not use it on shared machines.
 
-## Problemas comuns
+## Troubleshooting
 
-- **A sessão não aparece:** ela foi aberta antes da instalação. Abra uma sessão
-  nova.
-- **Projeto marcado como Offline:** a sessão fechou ou está reiniciando o
-  painel; ele volta sozinho quando a sessão responder.
-- **O painel não abre:** rode `/monitor` numa sessão; isso sobe a central de
-  novo se ela tiver parado. Se a porta 47800 estiver ocupada, use
-  `OMO_MONITOR_PORT`.
-- **Tokens aparecem como "—":** o OmO só informa os tokens quando o agente
-  termina.
+- **A session does not show up:** it was opened before the install. Open a new
+  session.
+- **Project marked Offline:** the session closed or is restarting the dashboard;
+  it comes back on its own when the session responds.
+- **The dashboard does not open:** run `/monitor` in a session; that restarts the
+  hub if it stopped. If port 47800 is taken, use `OMO_MONITOR_PORT`.
+- **Tokens show as "—":** OmO reports tokens only when the agent finishes.
 
-## English summary
-
-A live, local, multi-project dashboard for OmO agents (UI in Portuguese).
-Install with `omo install git:github.com/caikpigosso/omo-agent-monitor`, open a
-new OmO session, run `/monitor`, and browse to http://127.0.0.1:47800/. It shows
-the agent flow per project, each agent's instruction, current activity and every
-tool call with arguments and results, and lets you steer or abort agents and
-message the coordinator. Tested with OmO 5.1.33 on macOS (Linux untested); `tmux`
-is optional.
-Remove with `omo remove git:github.com/caikpigosso/omo-agent-monitor`.
-
-## Licença
+## License
 
 [MIT](LICENSE)

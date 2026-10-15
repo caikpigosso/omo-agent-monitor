@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Monitor local dos projetos OmO: fluxo de agentes, instruções, comandos e controle.">
+  <meta name="description" content="Local monitor for OmO projects: agent flow, instructions, commands and control.">
   <meta name="color-scheme" content="light dark">
-  <title>Painel de agentes · OmO</title>
+  <title>Agent dashboard · OmO</title>
   <style>
     :root {
       color-scheme: light;
@@ -114,7 +114,8 @@
     .p-meta [data-tone]:not([data-tone="neutral"]) { color:var(--tone); }
     .p-online { display:inline-flex; align-items:center; gap:5px; }
     .side-empty { padding:var(--s4); color:var(--muted); font-size:var(--fs-sm); }
-    .side-foot { border-top:1px solid var(--line); padding:var(--s3) var(--s4); display:flex; align-items:center; justify-content:space-between; gap:var(--s2); font-size:var(--fs-sm); color:var(--muted); }
+    .side-foot { border-top:1px solid var(--line); padding:var(--s3) var(--s4); display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:var(--s2) var(--s3); font-size:var(--fs-sm); color:var(--muted); }
+    .side-foot select.field { width:100%; }
 
     /* Main */
     .main { overflow:auto; position:relative; }
@@ -295,28 +296,30 @@
 </head>
 <body>
   <div class="app" id="app" data-detail="closed" data-switcher="closed">
-    <aside class="sidebar" id="sidebar" aria-label="Projetos">
+    <aside class="sidebar" id="sidebar" aria-label="Projects" data-i18n-aria="side.label">
       <div class="brand">
-        <span class="wordmark">OmO</span><span class="brand-sep" aria-hidden="true"></span><span class="brand-title">Agentes</span>
+        <span class="wordmark">OmO</span><span class="brand-sep" aria-hidden="true"></span><span class="brand-title" data-i18n="side.brand">Agents</span>
         <span id="conn" class="conn" role="status"></span>
-        <button id="switcher-close" class="icon-btn switcher-close" type="button" aria-label="Fechar lista de projetos"></button>
+        <button id="switcher-close" class="icon-btn switcher-close" type="button" aria-label="Close project list" data-i18n-aria="side.close"></button>
       </div>
       <div class="side-search">
-        <label class="sr-only" for="project-filter">Filtrar projetos</label>
-        <input id="project-filter" class="field" type="search" placeholder="Filtrar projetos" autocomplete="off" spellcheck="false">
+        <label class="sr-only" for="project-filter" data-i18n="side.filter">Filter projects</label>
+        <input id="project-filter" class="field" type="search" placeholder="Filter projects" data-i18n-ph="side.filter" autocomplete="off" spellcheck="false">
       </div>
-      <div class="side-label"><span>Projetos abertos</span><span id="project-count"></span></div>
-      <nav id="project-list" class="project-list" aria-label="Projetos abertos"></nav>
+      <div class="side-label"><span data-i18n="side.open">Open projects</span><span id="project-count"></span></div>
+      <nav id="project-list" class="project-list" aria-label="Open projects" data-i18n-aria="side.open"></nav>
       <div class="side-foot">
-        <label for="theme">Aparência</label>
-        <select id="theme" class="field"><option value="system">Sistema</option><option value="light">Clara</option><option value="dark">Escura</option></select>
+        <label for="lang" data-i18n="side.language">Language</label>
+        <select id="lang" class="field"><option value="en" lang="en">English</option><option value="pt-BR" lang="pt-BR">Português (BR)</option></select>
+        <label for="theme" data-i18n="side.appearance">Appearance</label>
+        <select id="theme" class="field"><option value="system" data-i18n="theme.system">System</option><option value="light" data-i18n="theme.light">Light</option><option value="dark" data-i18n="theme.dark">Dark</option></select>
       </div>
     </aside>
 
     <main class="main" id="main">
       <div class="mobile-bar">
         <button id="switcher-open" class="switcher" type="button" aria-controls="sidebar" aria-expanded="false">
-          <span class="wordmark">OmO</span><span class="lbl">Projeto</span><span id="switcher-name" class="t">Projetos</span>
+          <span class="wordmark">OmO</span><span class="lbl" data-i18n="mobile.project">Project</span><span id="switcher-name" class="t">Projects</span>
         </button>
         <span id="conn-mobile" class="conn"></span>
       </div>
@@ -325,42 +328,42 @@
 
     <aside id="detail" class="detail" aria-labelledby="detail-title" hidden>
       <header class="d-head">
-        <div class="d-top"><span id="detail-kind" class="d-kind">Agente</span><button id="detail-close" class="icon-btn" type="button" aria-label="Fechar detalhes"></button></div>
-        <h2 id="detail-title" tabindex="-1">Detalhes</h2>
+        <div class="d-top"><span id="detail-kind" class="d-kind">Agent</span><button id="detail-close" class="icon-btn" type="button" aria-label="Close details" data-i18n-aria="detail.close"></button></div>
+        <h2 id="detail-title" tabindex="-1">Details</h2>
         <div id="detail-meta" class="d-meta"></div>
         <div id="detail-now" class="d-now" hidden></div>
       </header>
-      <div class="tabs" role="tablist" aria-label="Seções do detalhe">
-        <button id="tab-activity" class="tab" role="tab" type="button" data-tab="activity" aria-controls="detail-body">Atividade</button>
-        <button id="tab-instruction" class="tab" role="tab" type="button" data-tab="instruction" aria-controls="detail-body">Instrução</button>
-        <button id="tab-result" class="tab" role="tab" type="button" data-tab="result" aria-controls="detail-body">Resultado</button>
+      <div class="tabs" role="tablist" aria-label="Detail sections" data-i18n-aria="detail.sections">
+        <button id="tab-activity" class="tab" role="tab" type="button" data-tab="activity" aria-controls="detail-body" data-i18n="tab.activity">Activity</button>
+        <button id="tab-instruction" class="tab" role="tab" type="button" data-tab="instruction" aria-controls="detail-body" data-i18n="tab.instruction">Instruction</button>
+        <button id="tab-result" class="tab" role="tab" type="button" data-tab="result" aria-controls="detail-body" data-i18n="tab.result">Result</button>
       </div>
       <div id="activity-tools" class="a-tools">
-        <div class="seg" role="group" aria-label="Filtrar atividade">
-          <button type="button" data-filter="all" aria-pressed="true">Tudo</button>
-          <button type="button" data-filter="tools" aria-pressed="false">Comandos</button>
-          <button type="button" data-filter="errors" aria-pressed="false">Erros</button>
+        <div class="seg" role="group" aria-label="Filter activity" data-i18n-aria="filter.label">
+          <button type="button" data-filter="all" aria-pressed="true" data-i18n="filter.all">All</button>
+          <button type="button" data-filter="tools" aria-pressed="false" data-i18n="filter.tools">Commands</button>
+          <button type="button" data-filter="errors" aria-pressed="false" data-i18n="filter.errors">Errors</button>
         </div>
         <div class="a-search">
-          <label class="sr-only" for="activity-search">Buscar na atividade</label>
-          <input id="activity-search" class="field" type="search" placeholder="Buscar na atividade" autocomplete="off" spellcheck="false">
+          <label class="sr-only" for="activity-search" data-i18n="filter.search">Search activity</label>
+          <input id="activity-search" class="field" type="search" placeholder="Search activity" data-i18n-ph="filter.search" autocomplete="off" spellcheck="false">
         </div>
         <span id="activity-count" class="a-count" aria-live="polite"></span>
       </div>
       <div id="detail-body" class="d-body" role="tabpanel" tabindex="-1"></div>
       <form id="composer" class="composer" novalidate>
-        <label id="message-label" for="message">Mensagem para o agente</label>
-        <textarea id="message" class="field" rows="3" placeholder="Escreva uma orientação…"></textarea>
+        <label id="message-label" for="message">Message to the agent</label>
+        <textarea id="message" class="field" rows="3" placeholder="Write guidance…" data-i18n-ph="composer.placeholder"></textarea>
         <div id="abort-confirm" class="confirm" hidden>
-          <p id="abort-question">Interromper este agente? O trabalho em andamento será cancelado.</p>
-          <button id="abort-no" class="btn" type="button">Cancelar</button>
-          <button id="abort-yes" class="btn danger-solid" type="button">Interromper agente</button>
+          <p id="abort-question">Stop this agent? Work in progress will be cancelled.</p>
+          <button id="abort-no" class="btn" type="button" data-i18n="composer.cancel">Cancel</button>
+          <button id="abort-yes" class="btn danger-solid" type="button" data-i18n="composer.abortConfirm">Stop agent</button>
         </div>
         <div class="c-row">
           <span id="send-hint" class="c-hint"></span>
           <div class="c-actions">
-            <button id="abort" class="btn danger" type="button">Interromper</button>
-            <button id="send" class="btn primary" type="submit"><span id="send-label">Enviar</span></button>
+            <button id="abort" class="btn danger" type="button">Stop</button>
+            <button id="send" class="btn primary" type="submit"><span id="send-label">Send</span></button>
           </div>
         </div>
         <p id="control-note" class="c-note" role="status"></p>
@@ -376,20 +379,190 @@
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     const MAX_TEXT = 32000;
 
-    const STATUS = {
-      pending:['Pendente','warning'], queued:['Na fila','warning'], scheduled:['Agendado','warning'],
-      blocked:['Aguardando dependências','warning'], waiting:['Aguardando','warning'],
-      running:['Em execução','info'], working:['Trabalhando','info'], idle:['Ocioso','neutral'],
-      completed:['Concluído','success'], done:['Concluído','success'], succeeded:['Concluído','success'],
-      error:['Erro','danger'], failed:['Falhou','danger'], lost:['Sessão perdida','danger'],
-      cancelled:['Cancelado','neutral'], interrupted:['Interrompido','warning'], skipped:['Não executado','neutral']
+    const STATUS_TONE = {
+      pending:'warning', queued:'warning', scheduled:'warning', blocked:'warning', waiting:'warning',
+      running:'info', working:'info', idle:'neutral',
+      completed:'success', done:'success', succeeded:'success',
+      error:'danger', failed:'danger', lost:'danger',
+      cancelled:'neutral', interrupted:'warning', skipped:'neutral'
     };
     const TERMINAL = new Set(['completed','done','succeeded','error','failed','lost','cancelled','interrupted','skipped']);
     const FAILED = new Set(['error','failed','lost']);
-    const OUTCOME = {
-      steered:'Mensagem entregue ao agente em execução.', revived:'Agente retomado com a sua mensagem.',
-      queued:'Mensagem colocada na fila do agente.', cancelled:'Interrupção confirmada. Aguardando o novo estado da sessão.',
-      delivered:'Mensagem entregue ao coordenador.'
+    const QUOTA_STALE = 'Quota has fewer than two recent readings; refresh it in the native usage panel.';
+    const LANG_KEY = 'omo-monitor-lang', LOCALES = {en:'en-US','pt-BR':'pt-BR'};
+
+    /* ---------- i18n: English default, pt-BR alternative. Plural entries are {one, other}. ---------- */
+    const I18N = {
+      en: {
+        'app.title':'Agent dashboard · OmO', 'app.description':'Local monitor for OmO projects: agent flow, instructions, commands and control.',
+        'side.label':'Projects', 'side.brand':'Agents', 'side.close':'Close project list', 'side.filter':'Filter projects',
+        'side.open':'Open projects', 'side.language':'Language', 'side.appearance':'Appearance',
+        'side.loading':'Loading projects…', 'side.none':'No open projects right now.', 'side.noMatch':'No project matches “{q}”.', 'side.count':'{shown} of {total}',
+        'theme.system':'System', 'theme.light':'Light', 'theme.dark':'Dark',
+        'mobile.project':'Project', 'mobile.projects':'Projects',
+        'conn.live':'Live', 'conn.reconnecting':'Reconnecting…', 'conn.connecting':'Connecting…',
+        'p.online':'Online', 'p.offline':'Offline', 'p.running':'{count} running', 'p.failed':'{count} failed',
+        'p.completed':{one:'{count} completed', other:'{count} completed'}, 'p.noAgents':'no agents',
+        'common.retry':'Try again', 'common.noDir':'Directory not reported', 'common.noModel':'model not reported',
+        'common.noArgs':'(no arguments)', 'common.noStatus':'No status', 'common.coordinator':'Coordinator',
+        'common.agent':'Agent', 'common.agentLower':'agent', 'common.model':'Model', 'common.inTotal':'{n} in total',
+        'common.chars':{one:'{count} character', other:'{count} characters'},
+        'dur.s':'{s}s', 'dur.ms':'{m}m {s}s', 'dur.m':'{m}m', 'dur.hm':'{h}h {m}m',
+        'main.hubDown':'Hub unavailable', 'main.projectsFailed':'Could not load the projects: {reason}',
+        'main.loadingProjects':'Loading projects', 'main.connecting':'Connecting to the local OmO hub.',
+        'main.noSessions':'No open OmO sessions', 'main.noSessionsText':'Open OmO in a project. Each session shows up here automatically, without reloading the page.',
+        'main.notFound':'Project not found', 'main.notFoundText':'Project “{pid}” is not among the open sessions.', 'main.openFirst':'Open {name}',
+        'main.offline':'Project offline', 'main.offlineText':'This project’s session is not responding. The flow appears when it comes back.',
+        'main.stateFailed':'Could not load the state', 'main.loadingState':'Loading project state', 'main.loadingStateText':'Fetching this session’s agents, workflows and quota.',
+        'main.offlineNotice':'Project offline. Showing the last received state; controls are unavailable.',
+        'main.badEvent':'The hub sent an invalid “{type}” event; waiting for the next one.',
+        'head.quota':'Quota left:', 'head.mostQuota':'· most quota: {name}',
+        'm.summary':'Project summary', 'm.agents':'Agents', 'm.nested':{one:'{count} nested', other:'{count} nested'},
+        'm.running':'Running', 'm.failed':'Failed', 'm.tokens':'Tokens', 'm.notReported':'Not reported', 'm.tools':'Tools', 'm.calls':'calls',
+        'flow.title':'Agent flow', 'flow.note':'Select a node to see its instruction, commands and result. Arrow keys move between nodes.',
+        'flow.empty':'No child agents yet. When the coordinator delegates tasks, they show up here connected to it.',
+        'flow.tree':'Agent tree', 'flow.mainSession':'main session', 'flow.direct':{one:'{count} direct agent', other:'{count} direct agents'},
+        'flow.runningAgents':'running agents', 'flow.coordTools':'tool calls across agents', 'flow.waitingStart':'Waiting to start',
+        'flow.noActivity':'No activity recorded', 'flow.toolCalls':'tool calls', 'flow.tokens':'tokens', 'flow.duration':'duration',
+        'dag.title':'Workflows', 'dag.count':{one:'{count} registered workflow', other:'{count} registered workflows'},
+        'dag.steps':{one:'{count} step', other:'{count} steps'}, 'dag.noSteps':'The server has not reported this workflow’s steps yet.',
+        'dag.aria':'Steps of workflow {name}', 'dag.dependsOn':'Depends on: {deps}', 'dag.start':'Workflow start', 'dag.noAgent':'Agent not available',
+        'dag.cyclic':'Cyclic dependencies: the order of some steps cannot be determined.', 'dag.missingDeps':'Some dependencies refer to steps that were not reported.',
+        'detail.close':'Close details', 'detail.sections':'Detail sections', 'detail.kindLevel':'Agent · level {depth}',
+        'detail.agents':{one:'{count} agent', other:'{count} agents'}, 'detail.sessionAgents':'Agents in this session',
+        'detail.notInState':'Agent not found in the current project state.', 'detail.agentType':'Agent type', 'detail.duration':'Duration',
+        'detail.tokens':'{n} tokens', 'detail.tools':{one:'{count} tool call', other:'{count} tool calls'}, 'detail.toolCalls':'Tool calls',
+        'detail.origin':'Parent: {name}', 'detail.now':'Now: {what}', 'detail.loadFailed':'Could not load the details', 'detail.loading':'Loading details',
+        'detail.readingCoord':'Reading the coordinator session.', 'detail.readingAgent':'Reading this agent’s session.', 'detail.refreshFailed':'Refresh failed: {reason}',
+        'tab.activity':'Activity', 'tab.instruction':'Instruction', 'tab.result':'Result',
+        'filter.label':'Filter activity', 'filter.all':'All', 'filter.tools':'Commands', 'filter.errors':'Errors', 'filter.search':'Search activity',
+        'act.events':{one:'{count} event', other:'{count} events'}, 'act.commands':{one:'{count} command', other:'{count} commands'},
+        'act.errors':{one:'{count} error', other:'{count} errors'}, 'act.shownOf':'{shown} of {all}',
+        'act.none':'No activity yet', 'act.noneAgent':'The agent has not recorded messages or tool calls yet.', 'act.noneCoord':'The coordinator has not recorded activity yet.',
+        'act.nothing':'Nothing found', 'act.noMatch':'No event matches “{q}” in this filter.', 'act.noErrors':'No tool call failed.',
+        'act.noTools':'No tool calls recorded.', 'act.timeline':'Timeline',
+        'pin.none':'No instruction recorded', 'pin.missing':'The server did not report this agent’s instruction.',
+        'ev.thinking':'Thinking', 'ev.thinkingText':'Thinking: {text}', 'ev.model':'Model: {text}', 'ev.modelChanged':'changed',
+        'ev.received':'Message received', 'ev.user':'User', 'ev.event':'Event',
+        'tool.collapse':'Collapse', 'tool.showAll':{one:'Show all ({count} line)', other:'Show all ({count} lines)'},
+        'tool.srFailed':'Failed: ', 'tool.srRunning':'Running: ', 'tool.srDone':'Completed: ', 'tool.fallback':'tool',
+        'tool.running':'running', 'tool.failedDur':'failed · {d}', 'tool.start':'Start {time}', 'tool.end':'end {time}', 'tool.id':'id {id}',
+        'tool.args':'Arguments', 'tool.errorResult':'Returned error', 'tool.result':'Result', 'tool.noResult':'No result content.',
+        'tool.waiting':'Waiting for the result: the call is still running.', 'tool.truncated':'Result truncated by the server (limit of {max} characters).',
+        'instr.none':'Instruction not reported', 'instr.noneText':'The server did not record the prompt this agent received.', 'instr.head':'Prompt received by the agent',
+        'res.none':'No result yet', 'res.noneDone':'The agent finished without a recorded final text.', 'res.noneWait':'The result appears when the agent responds.',
+        'res.stillRunning':'The agent is still running; this is the latest text.', 'res.lastBeforeFail':'Last response before the failure', 'res.final':'Final response',
+        'composer.placeholder':'Write guidance…', 'composer.cancel':'Cancel', 'composer.abortConfirm':'Stop agent',
+        'composer.to':'Message to {name}', 'composer.theAgent':'the agent', 'composer.theCoord':'the coordinator',
+        'composer.abortQuestion':'Stop {name}? Work in progress will be cancelled.',
+        'composer.send':'Send', 'composer.sending':'Sending…', 'composer.abort':'Stop', 'composer.aborting':'Stopping…',
+        'composer.blockedHub':'Hub disconnected. Controls return after reconnecting.', 'composer.blockedOffline':'Project offline. Controls return when the session responds.',
+        'composer.blockedToken':'The hub did not provide control authorization.', 'composer.blockedMissing':'This agent is not in the current project state.',
+        'composer.finished':'The agent has already finished.', 'composer.count':'{len} / {max} characters', 'composer.hint':'{key}+Enter to send',
+        'composer.waiting':'Waiting for server confirmation…', 'composer.confirmed':'Action confirmed by the server.',
+        'composer.messageFailed':'Message not sent: {reason}', 'composer.abortFailed':'Stop failed: {reason}',
+        'outcome.steered':'Message delivered to the running agent.', 'outcome.revived':'Agent resumed with your message.',
+        'outcome.queued':'Message queued for the agent.', 'outcome.cancelled':'Stop confirmed. Waiting for the new session state.',
+        'outcome.delivered':'Message delivered to the coordinator.',
+        'status.pending':'Pending', 'status.queued':'Queued', 'status.scheduled':'Scheduled', 'status.blocked':'Waiting for dependencies',
+        'status.waiting':'Waiting', 'status.running':'Running', 'status.working':'Working', 'status.idle':'Idle',
+        'status.completed':'Completed', 'status.done':'Completed', 'status.succeeded':'Completed', 'status.error':'Error',
+        'status.failed':'Failed', 'status.lost':'Session lost', 'status.cancelled':'Cancelled', 'status.interrupted':'Interrupted', 'status.skipped':'Skipped',
+        'err.http':'The hub responded with HTTP {status}.', 'err.httpShort':'HTTP {status}', 'err.refused':'The hub refused the action (HTTP {status}).',
+        'err.rejectedBare':'OmO refused the action.',
+        'err.quotaStale':'Quota has fewer than two recent readings; refresh it in the native usage panel.',
+        'code.unauthorized':'Control not authorized. Reload the page to get a new token.', 'code.task_not_found':'Agent not found.',
+        'code.project_not_found':'Project not found.', 'code.method_not_allowed':'Method not supported.', 'code.agent_finished':'The agent has already finished.',
+        'code.invalid_json':'Invalid request body (JSON).', 'code.invalid_message':'Invalid message: write between 1 and {max} characters.',
+        'code.coordinator_unavailable':'The coordinator is not available right now.', 'code.control_failed':'The session could not complete the action.',
+        'code.control_rejected':'OmO refused the action: {reason}', 'code.request_cancelled':'The request was cancelled.',
+        'code.session_unavailable':'The project session is not responding.'
+      },
+      'pt-BR': {
+        'app.title':'Painel de agentes · OmO', 'app.description':'Monitor local dos projetos OmO: fluxo de agentes, instruções, comandos e controle.',
+        'side.label':'Projetos', 'side.brand':'Agentes', 'side.close':'Fechar lista de projetos', 'side.filter':'Filtrar projetos',
+        'side.open':'Projetos abertos', 'side.language':'Idioma', 'side.appearance':'Aparência',
+        'side.loading':'Carregando projetos…', 'side.none':'Nenhum projeto aberto no momento.', 'side.noMatch':'Nenhum projeto corresponde a “{q}”.', 'side.count':'{shown} de {total}',
+        'theme.system':'Sistema', 'theme.light':'Clara', 'theme.dark':'Escura',
+        'mobile.project':'Projeto', 'mobile.projects':'Projetos',
+        'conn.live':'Ao vivo', 'conn.reconnecting':'Reconectando…', 'conn.connecting':'Conectando…',
+        'p.online':'Online', 'p.offline':'Offline', 'p.running':'{count} em execução', 'p.failed':'{count} com falha',
+        'p.completed':{one:'{count} concluído', other:'{count} concluídos'}, 'p.noAgents':'sem agentes',
+        'common.retry':'Tentar novamente', 'common.noDir':'Diretório não informado', 'common.noModel':'modelo não informado',
+        'common.noArgs':'(sem argumentos)', 'common.noStatus':'Sem estado', 'common.coordinator':'Coordenador',
+        'common.agent':'Agente', 'common.agentLower':'agente', 'common.model':'Modelo', 'common.inTotal':'{n} no total',
+        'common.chars':{one:'{count} caractere', other:'{count} caracteres'},
+        'dur.s':'{s} s', 'dur.ms':'{m} min {s} s', 'dur.m':'{m} min', 'dur.hm':'{h} h {m} min',
+        'main.hubDown':'Hub indisponível', 'main.projectsFailed':'Não foi possível obter os projetos: {reason}',
+        'main.loadingProjects':'Carregando projetos', 'main.connecting':'Conectando ao hub local do OmO.',
+        'main.noSessions':'Nenhuma sessão OmO aberta', 'main.noSessionsText':'Abra o OmO em um projeto. Cada sessão aparece aqui automaticamente, sem recarregar a página.',
+        'main.notFound':'Projeto não encontrado', 'main.notFoundText':'O projeto “{pid}” não está entre as sessões abertas.', 'main.openFirst':'Abrir {name}',
+        'main.offline':'Projeto offline', 'main.offlineText':'A sessão deste projeto não está respondendo. O fluxo aparece quando ela voltar.',
+        'main.stateFailed':'Não foi possível carregar o estado', 'main.loadingState':'Carregando estado do projeto', 'main.loadingStateText':'Buscando agentes, workflows e cota desta sessão.',
+        'main.offlineNotice':'Projeto offline. Exibindo o último estado recebido; os controles ficam indisponíveis.',
+        'main.badEvent':'O hub enviou um evento “{type}” inválido; aguardando o próximo.',
+        'head.quota':'Cota restante:', 'head.mostQuota':'· mais cota: {name}',
+        'm.summary':'Resumo do projeto', 'm.agents':'Agentes', 'm.nested':{one:'{count} aninhado', other:'{count} aninhados'},
+        'm.running':'Em execução', 'm.failed':'Com falha', 'm.tokens':'Tokens', 'm.notReported':'Não informado', 'm.tools':'Ferramentas', 'm.calls':'chamadas',
+        'flow.title':'Fluxo de agentes', 'flow.note':'Selecione um nó para ver instrução, comandos e resultado. Setas navegam entre nós.',
+        'flow.empty':'Nenhum agente filho ainda. Quando o coordenador delegar tarefas, elas aparecem aqui conectadas a ele.',
+        'flow.tree':'Árvore de agentes', 'flow.mainSession':'sessão principal', 'flow.direct':{one:'{count} agente direto', other:'{count} agentes diretos'},
+        'flow.runningAgents':'agentes em execução', 'flow.coordTools':'chamadas de ferramenta nos agentes', 'flow.waitingStart':'Aguardando início',
+        'flow.noActivity':'Sem atividade registrada', 'flow.toolCalls':'chamadas de ferramenta', 'flow.tokens':'tokens', 'flow.duration':'duração',
+        'dag.title':'Workflows', 'dag.count':{one:'{count} workflow registrado', other:'{count} workflows registrados'},
+        'dag.steps':{one:'{count} etapa', other:'{count} etapas'}, 'dag.noSteps':'O servidor ainda não informou as etapas deste workflow.',
+        'dag.aria':'Etapas do workflow {name}', 'dag.dependsOn':'Depende de: {deps}', 'dag.start':'Início do workflow', 'dag.noAgent':'Agente não disponível',
+        'dag.cyclic':'Dependências cíclicas: a ordem de algumas etapas não pode ser determinada.', 'dag.missingDeps':'Algumas dependências citam etapas que não foram informadas.',
+        'detail.close':'Fechar detalhes', 'detail.sections':'Seções do detalhe', 'detail.kindLevel':'Agente · nível {depth}',
+        'detail.agents':{one:'{count} agente', other:'{count} agentes'}, 'detail.sessionAgents':'Agentes desta sessão',
+        'detail.notInState':'Agente não encontrado no estado atual do projeto.', 'detail.agentType':'Tipo de agente', 'detail.duration':'Duração',
+        'detail.tokens':'{n} tokens', 'detail.tools':{one:'{count} ferramenta', other:'{count} ferramentas'}, 'detail.toolCalls':'Chamadas de ferramenta',
+        'detail.origin':'Origem: {name}', 'detail.now':'Agora: {what}', 'detail.loadFailed':'Não foi possível carregar os detalhes', 'detail.loading':'Carregando detalhes',
+        'detail.readingCoord':'Lendo a sessão do coordenador.', 'detail.readingAgent':'Lendo a sessão deste agente.', 'detail.refreshFailed':'Falha ao atualizar: {reason}',
+        'tab.activity':'Atividade', 'tab.instruction':'Instrução', 'tab.result':'Resultado',
+        'filter.label':'Filtrar atividade', 'filter.all':'Tudo', 'filter.tools':'Comandos', 'filter.errors':'Erros', 'filter.search':'Buscar na atividade',
+        'act.events':{one:'{count} evento', other:'{count} eventos'}, 'act.commands':{one:'{count} comando', other:'{count} comandos'},
+        'act.errors':{one:'{count} erro', other:'{count} erros'}, 'act.shownOf':'{shown} de {all}',
+        'act.none':'Nenhuma atividade ainda', 'act.noneAgent':'O agente ainda não registrou mensagens nem chamadas de ferramenta.', 'act.noneCoord':'O coordenador ainda não registrou atividade.',
+        'act.nothing':'Nada encontrado', 'act.noMatch':'Nenhum evento corresponde a “{q}” neste filtro.', 'act.noErrors':'Nenhuma chamada de ferramenta falhou.',
+        'act.noTools':'Nenhuma chamada de ferramenta registrada.', 'act.timeline':'Linha do tempo',
+        'pin.none':'Sem instrução registrada', 'pin.missing':'O servidor não informou a instrução deste agente.',
+        'ev.thinking':'Pensando', 'ev.thinkingText':'Pensando: {text}', 'ev.model':'Modelo: {text}', 'ev.modelChanged':'alterado',
+        'ev.received':'Mensagem recebida', 'ev.user':'Usuário', 'ev.event':'Evento',
+        'tool.collapse':'Recolher', 'tool.showAll':{one:'Mostrar tudo ({count} linha)', other:'Mostrar tudo ({count} linhas)'},
+        'tool.srFailed':'Falhou: ', 'tool.srRunning':'Em execução: ', 'tool.srDone':'Concluído: ', 'tool.fallback':'ferramenta',
+        'tool.running':'em execução', 'tool.failedDur':'falhou · {d}', 'tool.start':'Início {time}', 'tool.end':'fim {time}', 'tool.id':'id {id}',
+        'tool.args':'Argumentos', 'tool.errorResult':'Erro retornado', 'tool.result':'Resultado', 'tool.noResult':'Sem conteúdo de resultado.',
+        'tool.waiting':'Aguardando resultado: a chamada ainda está em execução.', 'tool.truncated':'Resultado truncado pelo servidor (limite de {max} caracteres).',
+        'instr.none':'Instrução não informada', 'instr.noneText':'O servidor não registrou o prompt recebido por este agente.', 'instr.head':'Prompt recebido pelo agente',
+        'res.none':'Sem resultado ainda', 'res.noneDone':'O agente terminou sem texto final registrado.', 'res.noneWait':'O resultado aparece quando o agente responder.',
+        'res.stillRunning':'O agente ainda está em execução; este é o texto mais recente.', 'res.lastBeforeFail':'Última resposta antes da falha', 'res.final':'Resposta final',
+        'composer.placeholder':'Escreva uma orientação…', 'composer.cancel':'Cancelar', 'composer.abortConfirm':'Interromper agente',
+        'composer.to':'Mensagem para {name}', 'composer.theAgent':'o agente', 'composer.theCoord':'o coordenador',
+        'composer.abortQuestion':'Interromper {name}? O trabalho em andamento será cancelado.',
+        'composer.send':'Enviar', 'composer.sending':'Enviando…', 'composer.abort':'Interromper', 'composer.aborting':'Interrompendo…',
+        'composer.blockedHub':'Hub desconectado. Os controles voltam após a reconexão.', 'composer.blockedOffline':'Projeto offline. Os controles voltam quando a sessão responder.',
+        'composer.blockedToken':'O hub não forneceu autorização para controles.', 'composer.blockedMissing':'Este agente não está no estado atual do projeto.',
+        'composer.finished':'O agente já terminou.', 'composer.count':'{len} / {max} caracteres', 'composer.hint':'{key}+Enter para enviar',
+        'composer.waiting':'Aguardando confirmação do servidor…', 'composer.confirmed':'Ação confirmada pelo servidor.',
+        'composer.messageFailed':'Mensagem não enviada: {reason}', 'composer.abortFailed':'Interrupção não realizada: {reason}',
+        'outcome.steered':'Mensagem entregue ao agente em execução.', 'outcome.revived':'Agente retomado com a sua mensagem.',
+        'outcome.queued':'Mensagem colocada na fila do agente.', 'outcome.cancelled':'Interrupção confirmada. Aguardando o novo estado da sessão.',
+        'outcome.delivered':'Mensagem entregue ao coordenador.',
+        'status.pending':'Pendente', 'status.queued':'Na fila', 'status.scheduled':'Agendado', 'status.blocked':'Aguardando dependências',
+        'status.waiting':'Aguardando', 'status.running':'Em execução', 'status.working':'Trabalhando', 'status.idle':'Ocioso',
+        'status.completed':'Concluído', 'status.done':'Concluído', 'status.succeeded':'Concluído', 'status.error':'Erro',
+        'status.failed':'Falhou', 'status.lost':'Sessão perdida', 'status.cancelled':'Cancelado', 'status.interrupted':'Interrompido', 'status.skipped':'Não executado',
+        'err.http':'O hub respondeu com HTTP {status}.', 'err.httpShort':'HTTP {status}', 'err.refused':'O hub recusou a ação (HTTP {status}).',
+        'err.rejectedBare':'O OmO recusou a ação.',
+        'err.quotaStale':'Cotas sem duas leituras recentes; use o painel nativo de uso para atualizá-las.',
+        'code.unauthorized':'Controle não autorizado. Recarregue a página para obter um novo token.', 'code.task_not_found':'Agente não encontrado.',
+        'code.project_not_found':'Projeto não encontrado.', 'code.method_not_allowed':'Método não suportado.', 'code.agent_finished':'O agente já terminou.',
+        'code.invalid_json':'Corpo da requisição inválido (JSON).', 'code.invalid_message':'Mensagem inválida: escreva de 1 a {max} caracteres.',
+        'code.coordinator_unavailable':'O coordenador não está disponível no momento.', 'code.control_failed':'A sessão não conseguiu concluir a ação.',
+        'code.control_rejected':'O OmO recusou a ação: {reason}', 'code.request_cancelled':'A solicitação foi cancelada.',
+        'code.session_unavailable':'A sessão do projeto não está respondendo.'
+      }
     };
     const ICONS = {
       check:['M20 6 9 17l-5-5'], x:['M18 6 6 18','M6 6l12 12'],
@@ -432,27 +605,56 @@
       for (const d of ICONS[name] || []) { const p = document.createElementNS(NS,'path'); p.setAttribute('d',d); svg.append(p); }
       return svg;
     }
-    const nf = new Intl.NumberFormat('pt-BR');
-    const cf = new Intl.NumberFormat('pt-BR',{notation:'compact',maximumFractionDigits:1});
-    const num = v => Number.isFinite(v) ? nf.format(v) : '—';
-    const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
-    const compact = v => Number.isFinite(v) ? cf.format(v) : '—';
+    let lang = 'en', fmt = null, storedLang = null;
+    const normLang = v => { const s = String(v || '').toLowerCase(); return s === 'en' || s.startsWith('en-') ? 'en' : s === 'pt' || s.startsWith('pt-') ? 'pt-BR' : null; };
+    function setFormatters() {
+      const loc = LOCALES[lang];
+      fmt = {
+        num:new Intl.NumberFormat(loc), compact:new Intl.NumberFormat(loc,{notation:'compact',maximumFractionDigits:1}),
+        dec:new Intl.NumberFormat(loc,{maximumFractionDigits:1}), plural:new Intl.PluralRules(loc),
+        time:new Intl.DateTimeFormat(loc,{hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+        full:new Intl.DateTimeFormat(loc,{dateStyle:'medium',timeStyle:'medium'})
+      };
+    }
+    const has = key => Object.hasOwn(I18N.en,key);
+    function t(key, vars = {}) {
+      let s = I18N[lang][key] ?? I18N.en[key] ?? key;
+      // Zero reads as plural in both UIs ("0 eventos"), although CLDR pt maps 0 to "one".
+      if (typeof s === 'object') s = s[vars.count === 0 ? 'other' : fmt.plural.select(vars.count)] ?? s.other;
+      return s.replace(/\{(\w+)\}/g,(m,k) => !Object.hasOwn(vars,k) ? m : k === 'count' ? num(vars.count) : String(vars[k]));
+    }
+    // Backend errors are { error: <English text>, code }: the code selects the translation, the raw text is the fallback.
+    function apiError(data, fallback) {
+      const e = new Error(typeof data?.error === 'string' ? data.error : '');
+      e.code = typeof data?.code === 'string' ? data.code : '';
+      e.fallback = fallback;
+      return e;
+    }
+    function errMsg(e) {
+      if (!e) return '';
+      if (e.code === 'control_rejected') return e.message ? t('code.control_rejected',{reason:e.message}) : t('err.rejectedBare');
+      if (e.code && has('code.' + e.code)) return t('code.' + e.code,{max:num(MAX_TEXT)});
+      if (e.message) return e.message;
+      return e.fallback ? t(...e.fallback) : '';
+    }
+    const num = v => Number.isFinite(v) ? fmt.num.format(v) : '—';
+    const compact = v => Number.isFinite(v) ? fmt.compact.format(v) : '—';
     const ms = iso => { const t = Date.parse(iso); return Number.isFinite(t) ? t : null; };
     function dur(v) {
       if (v == null || !Number.isFinite(v) || v < 0) return '—';
-      if (v < 1000) return `${(v / 1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} s`;
+      if (v < 1000) return t('dur.s',{s:fmt.dec.format(v / 1000)});
       const s = Math.round(v / 1000);
-      if (s < 60) return `${s} s`;
+      if (s < 60) return t('dur.s',{s});
       const m = Math.floor(s / 60);
-      if (m < 60) return s % 60 ? `${m} min ${s % 60} s` : `${m} min`;
-      return `${Math.floor(m / 60)} h ${m % 60} min`;
+      if (m < 60) return s % 60 ? t('dur.ms',{m,s:s % 60}) : t('dur.m',{m});
+      return t('dur.hm',{h:num(Math.floor(m / 60)),m:m % 60});
     }
     function durShort(v) {
       if (v == null || !Number.isFinite(v) || v < 0) return '—';
       const s = Math.round(v / 1000);
-      if (s < 60) return `${s} s`;
+      if (s < 60) return t('dur.s',{s});
       const m = Math.floor(s / 60);
-      return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+      return m < 60 ? t('dur.m',{m}) : t('dur.hm',{h:num(Math.floor(m / 60)),m:m % 60});
     }
     function elapsed(t) {
       const start = ms(t?.startedAt) ?? ms(t?.createdAt);
@@ -461,16 +663,16 @@
     }
     function clock(iso) {
       const t = ms(iso);
-      return t == null ? '' : new Date(t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      return t == null ? '' : fmt.time.format(t);
     }
     function timeEl(iso) {
       const t = ms(iso);
       const node = el('time','',t == null ? '' : clock(iso));
-      if (t != null) { node.dateTime = iso; node.title = new Date(t).toLocaleString('pt-BR',{dateStyle:'medium',timeStyle:'medium'}); }
+      if (t != null) { node.dateTime = iso; node.title = fmt.full.format(t); }
       return node;
     }
     function shortPath(cwd) {
-      if (!cwd) return 'Diretório não informado';
+      if (!cwd) return t('common.noDir');
       const p = String(cwd).replace(/^\/(Users|home)\/[^/]+/,'~');
       if (p.length <= 34) return p;
       const parts = p.split('/').filter(Boolean);
@@ -484,17 +686,17 @@
       return s === name ? '' : s;
     }
     function prettyArgs(a) {
-      if (a === undefined || a === null) return '(sem argumentos)';
+      if (a === undefined || a === null) return t('common.noArgs');
       if (typeof a === 'string') { try { return JSON.stringify(JSON.parse(a),null,2); } catch { return a; } }
       try { return JSON.stringify(a,null,2); } catch { return String(a); }
     }
     function chip(status) {
-      const known = STATUS[status];
+      const known = typeof status === 'string' && Object.hasOwn(STATUS_TONE,status);
       const node = el('span','chip');
-      node.dataset.tone = known ? known[1] : 'neutral';
+      node.dataset.tone = known ? STATUS_TONE[status] : 'neutral';
       const dot = el('span','dot');
       if (status === 'running' || status === 'working') dot.dataset.live = '';
-      node.append(dot,el('span','',known ? known[0] : (status ? String(status) : 'Sem estado')));
+      node.append(dot,el('span','',known ? t('status.' + status) : (status ? String(status) : t('common.noStatus'))));
       return node;
     }
     function tag(text, tone) { const s = el('span','',text); s.dataset.tone = tone || 'neutral'; return s; }
@@ -503,7 +705,7 @@
       if (opts.tone) { box.dataset.tone = opts.tone; if (opts.tone === 'danger') box.setAttribute('role','alert'); }
       box.append(el('h3','',title));
       if (text) box.append(el('p','',text));
-      if (opts.retry) { const b = el('button','btn','Tentar novamente'); b.type = 'button'; b.addEventListener('click',opts.retry); box.append(b); }
+      if (opts.retry) { const b = el('button','btn',t('common.retry')); b.type = 'button'; b.addEventListener('click',opts.retry); box.append(b); }
       if (opts.link) { const a = el('a','btn',opts.link.text); a.href = opts.link.href; box.append(a); }
       return box;
     }
@@ -569,6 +771,8 @@
         if (old && old.startedAt !== p.startedAt) app.states.delete(p.id);
       }
       app.projects = snap; app.projectsError = '';
+      const hubLang = storedLang ? null : normLang(snap.locale);
+      if (hubLang && hubLang !== lang) { setLang(hubLang); rerender(); }
       if (!app.route.pid && snap.projects.length) {
         const first = snap.projects.find(p => p.online) || snap.projects[0];
         navigate({pid:first.id,target:null},true);
@@ -599,11 +803,11 @@
       try {
         const res = await fetch(`/api/projects/${enc(pid)}/state`,{signal:ctrl.signal,cache:'no-store'});
         let data = {}; try { data = await res.json(); } catch {}
-        if (!res.ok || data.error) throw new Error(data.error || `O hub respondeu com HTTP ${res.status}.`);
+        if (!res.ok || data.error) throw apiError(data,['err.http',{status:res.status}]);
         acceptState(pid,data);
       } catch (error) {
         if (error.name === 'AbortError') return;
-        if (!app.states.has(pid)) app.stateErrors.set(pid,error.message);
+        if (!app.states.has(pid)) app.stateErrors.set(pid,error);
       } finally {
         if (app.stateLoading.get(pid) === ctrl) app.stateLoading.delete(pid);
         if (pid === app.route.pid) renderMain();
@@ -613,10 +817,10 @@
       try {
         const res = await fetch('/api/projects',{cache:'no-store'});
         let data = {}; try { data = await res.json(); } catch {}
-        if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!res.ok || data.error) throw apiError(data,['err.httpShort',{status:res.status}]);
         acceptProjects(data);
       } catch (error) {
-        if (!app.projects) { app.projectsError = `Não foi possível obter os projetos: ${error.message}`; renderSidebar(); renderMain(); }
+        if (!app.projects) { app.projectsError = error; renderSidebar(); renderMain(); }
       }
     }
     function handleActivity(msg) {
@@ -630,7 +834,7 @@
 
     /* ---------- sidebar ---------- */
     function renderConnection() {
-      const [text,tone] = app.stream === 'open' ? ['Ao vivo','success'] : app.stream === 'error' ? ['Reconectando…','warning'] : ['Conectando…','neutral'];
+      const [text,tone] = app.stream === 'open' ? [t('conn.live'),'success'] : app.stream === 'error' ? [t('conn.reconnecting'),'warning'] : [t('conn.connecting'),'neutral'];
       for (const id of ['conn','conn-mobile']) {
         const n = $(id); n.dataset.tone = tone;
         n.replaceChildren(el('span','dot'),el('span','',text));
@@ -640,17 +844,17 @@
     function renderSidebar() {
       const list = $('project-list'), snap = app.projects;
       const focusPid = list.contains(document.activeElement) ? document.activeElement.dataset.pid : null;
-      $('switcher-name').textContent = project(app.route.pid)?.name || 'Projetos';
+      $('switcher-name').textContent = project(app.route.pid)?.name || t('mobile.projects');
       if (!snap) {
         $('project-count').textContent = '';
-        list.replaceChildren(el('p','side-empty',app.projectsError || 'Carregando projetos…'));
+        list.replaceChildren(el('p','side-empty',app.projectsError ? projectsErrorText() : t('side.loading')));
         return;
       }
       const q = app.filter.trim().toLowerCase();
       const items = snap.projects.filter(p => !q || `${p.name} ${p.cwd}`.toLowerCase().includes(q));
-      $('project-count').textContent = q ? `${items.length} de ${snap.projects.length}` : String(snap.projects.length);
-      if (!snap.projects.length) list.replaceChildren(el('p','side-empty','Nenhum projeto aberto no momento.'));
-      else if (!items.length) list.replaceChildren(el('p','side-empty',`Nenhum projeto corresponde a “${app.filter.trim()}”.`));
+      $('project-count').textContent = q ? t('side.count',{shown:num(items.length),total:num(snap.projects.length)}) : num(snap.projects.length);
+      if (!snap.projects.length) list.replaceChildren(el('p','side-empty',t('side.none')));
+      else if (!items.length) list.replaceChildren(el('p','side-empty',t('side.noMatch',{q:app.filter.trim()})));
       else list.replaceChildren(...items.map(projectItem));
       if (focusPid) list.querySelector(`[data-pid="${CSS.escape(focusPid)}"]`)?.focus({preventScroll:true});
     }
@@ -663,13 +867,13 @@
       const cwd = el('span','p-cwd t',shortPath(p.cwd)); cwd.title = p.cwd || '';
       const meta = el('span','p-meta');
       const on = el('span','p-online'); on.dataset.tone = p.online ? 'success' : 'neutral';
-      on.append(el('span','dot'),el('span','',p.online ? 'Online' : 'Offline'));
+      on.append(el('span','dot'),el('span','',p.online ? t('p.online') : t('p.offline')));
       meta.append(on);
       const c = p.counts || {};
-      if (c.running) meta.append(tag(`${num(c.running)} em execução`,'info'));
-      if (c.failed) meta.append(tag(`${num(c.failed)} com falha`,'danger'));
-      if (c.completed) meta.append(tag(`${num(c.completed)} ${c.completed === 1 ? 'concluído' : 'concluídos'}`));
-      if (!c.total) meta.append(tag('sem agentes'));
+      if (c.running) meta.append(tag(t('p.running',{count:c.running}),'info'));
+      if (c.failed) meta.append(tag(t('p.failed',{count:c.failed}),'danger'));
+      if (c.completed) meta.append(tag(t('p.completed',{count:c.completed})));
+      if (!c.total) meta.append(tag(t('p.noAgents')));
       a.append(row,cwd,meta);
       return a;
     }
@@ -690,7 +894,7 @@
       const top = main.scrollTop;
       const lefts = [...view.querySelectorAll('.flow-scroll')].map(n => [n.dataset.key,n.scrollLeft]);
       const focusKey = view.contains(document.activeElement) ? document.activeElement.dataset.key : null;
-      view.replaceChildren(...(app.eventError ? [notice(app.eventError,'danger')] : []),...mainContent());
+      view.replaceChildren(...(app.eventError ? [notice(t('main.badEvent',{type:app.eventError}),'danger')] : []),...mainContent());
       for (const [k,l] of lefts) { const n = view.querySelector(`.flow-scroll[data-key="${CSS.escape(k)}"]`); if (n) n.scrollLeft = l; }
       main.scrollTop = top;
       if (focusKey) view.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus({preventScroll:true});
@@ -698,24 +902,25 @@
     function mainContent() {
       const snap = app.projects;
       if (!snap) return [app.projectsError
-        ? stateBox('Hub indisponível',app.projectsError,{tone:'danger',retry:loadProjects})
-        : stateBox('Carregando projetos','Conectando ao hub local do OmO.')];
-      if (!snap.projects.length) return [stateBox('Nenhuma sessão OmO aberta','Abra o OmO em um projeto. Cada sessão aparece aqui automaticamente, sem recarregar a página.')];
+        ? stateBox(t('main.hubDown'),projectsErrorText(),{tone:'danger',retry:loadProjects})
+        : stateBox(t('main.loadingProjects'),t('main.connecting'))];
+      if (!snap.projects.length) return [stateBox(t('main.noSessions'),t('main.noSessionsText'))];
       const pid = app.route.pid, p = project(pid);
       if (!p) {
         const first = snap.projects[0];
-        return [stateBox('Projeto não encontrado',`O projeto “${pid ?? ''}” não está entre as sessões abertas.`,{link:{href:hashFor({pid:first.id}),text:`Abrir ${first.name || first.id}`}})];
+        return [stateBox(t('main.notFound'),t('main.notFoundText',{pid:pid ?? ''}),{link:{href:hashFor({pid:first.id}),text:t('main.openFirst',{name:first.name || first.id})}})];
       }
       const st = stateOf(pid), out = [projectHeader(p,st)];
       if (!st) {
         const err = app.stateErrors.get(pid);
-        if (!p.online) out.push(stateBox('Projeto offline','A sessão deste projeto não está respondendo. O fluxo aparece quando ela voltar.'));
-        else if (err) out.push(stateBox('Não foi possível carregar o estado',err,{tone:'danger',retry:() => fetchState(pid)}));
-        else out.push(stateBox('Carregando estado do projeto','Buscando agentes, workflows e cota desta sessão.'));
+        if (!p.online) out.push(stateBox(t('main.offline'),t('main.offlineText')));
+        else if (err) out.push(stateBox(t('main.stateFailed'),errMsg(err),{tone:'danger',retry:() => fetchState(pid)}));
+        else out.push(stateBox(t('main.loadingState'),t('main.loadingStateText')));
         return out;
       }
-      if (!p.online) out.push(notice('Projeto offline. Exibindo o último estado recebido; os controles ficam indisponíveis.'));
-      for (const e of Array.isArray(st.errors) ? st.errors : []) out.push(notice(String(e)));
+      if (!p.online) out.push(notice(t('main.offlineNotice')));
+      // SessionState.errors arrive in English; only the known quota message is translated.
+      for (const e of Array.isArray(st.errors) ? st.errors : []) out.push(notice(String(e) === QUOTA_STALE ? t('err.quotaStale') : String(e)));
       out.push(metrics(st),flowPanel(pid,st));
       if (Array.isArray(st.dags) && st.dags.length) out.push(dagPanel(pid,st));
       return out;
@@ -724,19 +929,19 @@
       const head = el('header','phead');
       const left = el('div','phead-main'), title = el('div','phead-title');
       const on = el('span','conn'); on.dataset.tone = p.online ? 'success' : 'neutral';
-      on.append(el('span','dot'),el('span','',p.online ? 'Online' : 'Offline'));
+      on.append(el('span','dot'),el('span','',p.online ? t('p.online') : t('p.offline')));
       title.append(el('h1','',p.name || p.id),on);
-      left.append(title,el('p','phead-cwd',p.cwd || 'Diretório não informado'));
+      left.append(title,el('p','phead-cwd',p.cwd || t('common.noDir')));
       const q = st?.quota && typeof st.quota === 'object' ? st.quota : {};
       const names = {claude:'Claude',gpt:'GPT'};
       const parts = Object.entries(q).filter(([k,v]) => k !== 'selectedProvider' && Number.isFinite(v));
       if (parts.length) {
         const line = el('p','quota');
-        line.append(el('span','','Cota restante:'));
+        line.append(el('span','',t('head.quota')));
         for (const [k,v] of parts) line.append(el('strong','',`${names[k] || k} ${num(v)}`));
         const sp = q.selectedProvider;
         const spName = sp === 'anthropic-subscription' ? 'Claude' : sp === 'chatgpt-subscription' ? 'GPT' : sp;
-        if (spName) line.append(el('span','',`· mais cota: ${spName}`));
+        if (spName) line.append(el('span','',t('head.mostQuota',{name:spName})));
         left.append(line);
       }
       head.append(left);
@@ -744,7 +949,7 @@
       if (coord) {
         const a = el('a','coord-link');
         a.href = hashFor({pid:p.id,target:{kind:'coord'}}); a.dataset.key = 'coord-link';
-        a.append(el('span','lbl','Coordenador'),chip(coord.status),el('span','mono',coord.model || 'modelo não informado'),icon('chevronRight','sm'));
+        a.append(el('span','lbl',t('common.coordinator')),chip(coord.status),el('span','mono',coord.model || t('common.noModel')),icon('chevronRight','sm'));
         head.append(a);
       }
       return head;
@@ -756,7 +961,7 @@
       const hasTokens = tasks.some(t => Number.isFinite(t.tokens));
       const tokens = tasks.reduce((s,t) => s + (Number.isFinite(t.tokens) ? t.tokens : 0),0);
       const tools = tasks.reduce((s,t) => s + (Number.isFinite(t.toolCount) ? t.toolCount : 0),0);
-      const box = el('section','metrics'); box.setAttribute('aria-label','Resumo do projeto');
+      const box = el('section','metrics'); box.setAttribute('aria-label',t('m.summary'));
       const add = (label, value, tone, sub) => {
         const m = el('div','metric'), v = el('p','m-value',value);
         if (tone) v.dataset.tone = tone;
@@ -764,11 +969,11 @@
         if (sub) m.append(el('p','m-sub',sub));
         box.append(m);
       };
-      add('Agentes',num(tasks.length),null,`${num(tasks.filter(t => t.depth > 1).length)} aninhados`);
-      add('Em execução',num(running),running ? 'info' : null);
-      add('Com falha',num(failed),failed ? 'danger' : null);
-      add('Tokens',hasTokens ? compact(tokens) : '—',null,hasTokens ? `${num(tokens)} no total` : 'Não informado');
-      add('Ferramentas',num(tools),null,'chamadas');
+      add(t('m.agents'),num(tasks.length),null,t('m.nested',{count:tasks.filter(task => task.depth > 1).length}));
+      add(t('m.running'),num(running),running ? 'info' : null);
+      add(t('m.failed'),num(failed),failed ? 'danger' : null);
+      add(t('m.tokens'),hasTokens ? compact(tokens) : '—',null,hasTokens ? t('common.inTotal',{n:num(tokens)}) : t('m.notReported'));
+      add(t('m.tools'),num(tools),null,t('m.calls'));
       return box;
     }
 
@@ -776,12 +981,12 @@
     function flowPanel(pid, st) {
       const tasks = Array.isArray(st.tasks) ? st.tasks : [];
       const sec = el('section','panel'); sec.setAttribute('aria-labelledby','flow-h');
-      const head = el('div','panel-head'), h = el('h2','','Fluxo de agentes'); h.id = 'flow-h';
-      head.append(h,el('span','panel-note','Selecione um nó para ver instrução, comandos e resultado. Setas navegam entre nós.'));
+      const head = el('div','panel-head'), h = el('h2','',t('flow.title')); h.id = 'flow-h';
+      head.append(h,el('span','panel-note',t('flow.note')));
       const scroller = el('div','flow-scroll'); scroller.dataset.key = 'agents';
       scroller.append(buildFlow(pid,st));
       sec.append(head,scroller);
-      if (!tasks.length) sec.append(el('p','flow-empty','Nenhum agente filho ainda. Quando o coordenador delegar tarefas, elas aparecem aqui conectadas a ele.'));
+      if (!tasks.length) sec.append(el('p','flow-empty',t('flow.empty')));
       return sec;
     }
     function buildFlow(pid, st) {
@@ -821,7 +1026,7 @@
       const height = narrow ? order.length * (H + GY) - GY : Math.max(cursor - GY,H);
       const wrap = el('div','flow');
       wrap.style.width = narrow ? '100%' : width + 'px'; wrap.style.height = height + 'px';
-      wrap.setAttribute('role','group'); wrap.setAttribute('aria-label','Árvore de agentes');
+      wrap.setAttribute('role','group'); wrap.setAttribute('aria-label',t('flow.tree'));
       const svg = document.createElementNS(NS,'svg');
       svg.setAttribute('class','edges'); svg.setAttribute('aria-hidden','true');
       svg.setAttribute('width',narrow ? '100%' : width); svg.setAttribute('height',height);
@@ -880,34 +1085,34 @@
       return row;
     }
     function coordNode(coord, tasks, direct) {
-      const b = nodeShell('c','Coordenador'); b.classList.add('coord');
-      const r2 = el('span','n-row'); r2.append(chip(coord.status),el('span','t','sessão principal'));
-      const r3 = el('span','n-row mono'); r3.append(el('span','t',coord.model || 'modelo não informado'));
-      const r4 = el('span','n-row'); r4.append(el('span','t',`${num(direct)} ${direct === 1 ? 'agente direto' : 'agentes diretos'} · ${num(tasks.length)} no total`));
-      const running = tasks.filter(t => t.status === 'running').length;
-      b.append(r2,r3,r4,statsRow([['bot',num(running),'agentes em execução'],['tool',num(tasks.reduce((s,t) => s + (t.toolCount || 0),0)),'chamadas de ferramenta nos agentes']]));
+      const b = nodeShell('c',t('common.coordinator')); b.classList.add('coord');
+      const r2 = el('span','n-row'); r2.append(chip(coord.status),el('span','t',t('flow.mainSession')));
+      const r3 = el('span','n-row mono'); r3.append(el('span','t',coord.model || t('common.noModel')));
+      const r4 = el('span','n-row'); r4.append(el('span','t',`${t('flow.direct',{count:direct})} · ${t('common.inTotal',{n:num(tasks.length)})}`));
+      const running = tasks.filter(task => task.status === 'running').length;
+      b.append(r2,r3,r4,statsRow([['bot',num(running),t('flow.runningAgents')],['tool',num(tasks.reduce((s,task) => s + (task.toolCount || 0),0)),t('flow.coordTools')]]));
       return b;
     }
-    function taskNode(t) {
-      const b = nodeShell('t:' + t.id,t.name || t.id);
-      const r2 = el('span','n-row'); r2.append(chip(t.status),el('span','t',t.agent || 'agente'));
-      const r3 = el('span','n-row mono'); r3.append(el('span','t',[t.provider,t.model].filter(Boolean).join(' / ') || 'modelo não informado'));
+    function taskNode(task) {
+      const b = nodeShell('t:' + task.id,task.name || task.id);
+      const r2 = el('span','n-row'); r2.append(chip(task.status),el('span','t',task.agent || t('common.agentLower')));
+      const r3 = el('span','n-row mono'); r3.append(el('span','t',[task.provider,task.model].filter(Boolean).join(' / ') || t('common.noModel')));
       const r4 = el('span','n-row');
-      if (t.status === 'running' && t.current) {
+      if (task.status === 'running' && task.current) {
         r4.className = 'n-row n-live';
-        const sum = toolSummary(t.current);
-        r4.append(icon('terminal','sm'),el('span','t',sum ? `${t.current.name}: ${sum}` : t.current.name));
-      } else if (t.lastText) r4.append(el('span','t',firstLine(t.lastText)));
-      else r4.append(el('span','t',t.status === 'pending' ? 'Aguardando início' : 'Sem atividade registrada'));
-      b.append(r2,r3,r4,statsRow([['tool',num(t.toolCount),'chamadas de ferramenta'],['hash',compact(t.tokens),'tokens'],['clock',durShort(elapsed(t)),'duração']]));
+        const sum = toolSummary(task.current);
+        r4.append(icon('terminal','sm'),el('span','t',sum ? `${task.current.name}: ${sum}` : task.current.name));
+      } else if (task.lastText) r4.append(el('span','t',firstLine(task.lastText)));
+      else r4.append(el('span','t',task.status === 'pending' ? t('flow.waitingStart') : t('flow.noActivity')));
+      b.append(r2,r3,r4,statsRow([['tool',num(task.toolCount),t('flow.toolCalls')],['hash',compact(task.tokens),t('flow.tokens')],['clock',durShort(elapsed(task)),t('flow.duration')]]));
       return b;
     }
 
     /* ---------- workflow DAGs (only real ones from the server) ---------- */
     function dagPanel(pid, st) {
       const sec = el('section','panel'); sec.setAttribute('aria-labelledby','dag-h');
-      const head = el('div','panel-head'), h = el('h2','','Workflows'); h.id = 'dag-h';
-      head.append(h,el('span','panel-note',`${num(st.dags.length)} ${st.dags.length === 1 ? 'workflow registrado' : 'workflows registrados'}`));
+      const head = el('div','panel-head'), h = el('h2','',t('dag.title')); h.id = 'dag-h';
+      head.append(h,el('span','panel-note',t('dag.count',{count:st.dags.length})));
       sec.append(head);
       for (const dag of st.dags) sec.append(dagSection(pid,st,dag));
       return sec;
@@ -916,9 +1121,9 @@
       const box = el('section','dag');
       const head = el('div','dag-head');
       const nodes = Array.isArray(dag.nodes) ? dag.nodes : [];
-      head.append(el('h3','',dag.name || dag.id),chip(dag.status),el('span','panel-note',`${num(nodes.length)} etapas`));
+      head.append(el('h3','',dag.name || dag.id),chip(dag.status),el('span','panel-note',t('dag.steps',{count:nodes.length})));
       box.append(head);
-      if (!nodes.length) { box.append(el('p','dag-warn','O servidor ainda não informou as etapas deste workflow.')); return box; }
+      if (!nodes.length) { box.append(el('p','dag-warn',t('dag.noSteps'))); return box; }
       const W = cssPx('--dag-w',196), H = cssPx('--dag-h',100), GX = cssPx('--dag-gap-x',40), GY = cssPx('--node-gap-y',12);
       const ids = new Set(nodes.map(n => n.id)), layerOf = new Map(), layers = [];
       let remaining = [...nodes], cyclic = false;
@@ -935,7 +1140,7 @@
       const height = narrow ? nodes.length * (H + GY) - GY : Math.max(...layers.map(l => l.length)) * (H + GY) - GY;
       const scroller = el('div','flow-scroll'); scroller.dataset.key = 'dag:' + dag.id;
       const wrap = el('div','flow'); wrap.style.width = narrow ? '100%' : width + 'px'; wrap.style.height = height + 'px';
-      wrap.setAttribute('role','group'); wrap.setAttribute('aria-label',`Etapas do workflow ${dag.name || dag.id}`);
+      wrap.setAttribute('role','group'); wrap.setAttribute('aria-label',t('dag.aria',{name:dag.name || dag.id}));
       const svg = document.createElementNS(NS,'svg');
       svg.setAttribute('class','edges'); svg.setAttribute('aria-hidden','true'); svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
       svg.setAttribute('width',narrow ? '100%' : width); svg.setAttribute('height',height);
@@ -958,9 +1163,9 @@
         node.title = n.label || n.id;
         const r2 = el('span','n-row'); r2.append(chip(n.state)); node.append(r2);
         const deps = (n.dependsOn || []).map(d => nodes.find(c => c.id === d)?.label || d);
-        const depRow = el('span','n-row'); depRow.append(el('span','t',deps.length ? `Depende de: ${deps.join(', ')}` : 'Início do workflow'));
+        const depRow = el('span','n-row'); depRow.append(el('span','t',deps.length ? t('dag.dependsOn',{deps:deps.join(', ')}) : t('dag.start')));
         node.append(depRow);
-        if (n.taskId && !linked) { const miss = el('span','n-row'); miss.append(el('span','t','Agente não disponível')); node.append(miss); }
+        if (n.taskId && !linked) { const miss = el('span','n-row'); miss.append(el('span','t',t('dag.noAgent'))); node.append(miss); }
         else if (linked) {
           const t = tasks.find(x => x.id === n.taskId);
           const r = el('span','n-row'); r.append(icon('bot','sm'),el('span','t',t.name || t.id)); node.append(r);
@@ -973,8 +1178,8 @@
         wrap.append(node);
       }
       scroller.append(wrap); box.append(scroller);
-      if (cyclic) box.append(el('p','dag-warn','Dependências cíclicas: a ordem de algumas etapas não pode ser determinada.'));
-      if (nodes.some(n => (n.dependsOn || []).some(d => !ids.has(d)))) box.append(el('p','dag-warn','Algumas dependências citam etapas que não foram informadas.'));
+      if (cyclic) box.append(el('p','dag-warn',t('dag.cyclic')));
+      if (nodes.some(n => (n.dependsOn || []).some(d => !ids.has(d)))) box.append(el('p','dag-warn',t('dag.missingDeps')));
       return box;
     }
 
@@ -1009,7 +1214,7 @@
         const res = await fetch(url,{signal:ctrl.signal,cache:'no-store'});
         let data = {}; try { data = await res.json(); } catch {}
         if (seq !== detail.seq) return;
-        if (!res.ok || data.error) throw new Error(data.error || `O hub respondeu com HTTP ${res.status}.`);
+        if (!res.ok || data.error) throw apiError(data,['err.http',{status:res.status}]);
         detail.data = data; detail.error = ''; detail.refreshError = '';
         if (detail.firstLoad) {
           detail.firstLoad = false;
@@ -1018,7 +1223,7 @@
         }
       } catch (error) {
         if (error.name === 'AbortError' || seq !== detail.seq) return;
-        if (detail.data) detail.refreshError = error.message; else detail.error = error.message;
+        if (detail.data) detail.refreshError = error; else detail.error = error;
       } finally {
         if (seq === detail.seq) { detail.loading = false; renderDetailHeader(); renderDetailBody(mode); }
       }
@@ -1043,28 +1248,28 @@
       if (r.target.kind === 'coord') {
         const c = st?.parents?.[0] || detail.data?.parent || {};
         const tasks = st?.tasks || [];
-        $('detail-kind').textContent = 'Coordenador';
-        $('detail-title').textContent = c.name ? `Coordenador · ${c.name}` : 'Coordenador';
-        meta.push(chip(c.status),metaItem('cpu',c.model || 'modelo não informado','Modelo'),metaItem('bot',`${num(tasks.length)} agentes`,'Agentes desta sessão'));
+        $('detail-kind').textContent = t('common.coordinator');
+        $('detail-title').textContent = t('common.coordinator');
+        meta.push(chip(c.status),metaItem('cpu',c.model || t('common.noModel'),t('common.model')),metaItem('bot',t('detail.agents',{count:tasks.length}),t('detail.sessionAgents')));
       } else {
-        const t = taskOf(r.pid,r.target.id) || detail.data?.task;
-        $('detail-kind').textContent = t?.depth > 1 ? `Agente · nível ${t.depth}` : 'Agente';
-        $('detail-title').textContent = t?.name || r.target.id;
-        if (!t) meta.push(el('span','','Agente não encontrado no estado atual do projeto.'));
+        const task = taskOf(r.pid,r.target.id) || detail.data?.task;
+        $('detail-kind').textContent = task?.depth > 1 ? t('detail.kindLevel',{depth:num(task.depth)}) : t('common.agent');
+        $('detail-title').textContent = task?.name || r.target.id;
+        if (!task) meta.push(el('span','',t('detail.notInState')));
         else {
-          meta.push(chip(t.status));
-          if (t.agent) meta.push(metaItem('bot',t.agent,'Tipo de agente'));
-          meta.push(metaItem('cpu',[t.provider,t.model].filter(Boolean).join(' / ') || 'modelo não informado','Modelo'));
-          meta.push(metaItem('clock',dur(elapsed(t)),'Duração'),metaItem('hash',`${compact(t.tokens)} tokens`,'Tokens'),metaItem('tool',`${num(t.toolCount)} ferramentas`,'Chamadas de ferramenta'));
-          const parent = taskOf(r.pid,t.parentId);
+          meta.push(chip(task.status));
+          if (task.agent) meta.push(metaItem('bot',task.agent,t('detail.agentType')));
+          meta.push(metaItem('cpu',[task.provider,task.model].filter(Boolean).join(' / ') || t('common.noModel'),t('common.model')));
+          meta.push(metaItem('clock',dur(elapsed(task)),t('detail.duration')),metaItem('hash',t('detail.tokens',{n:compact(task.tokens)}),t('m.tokens')),metaItem('tool',t('detail.tools',{count:task.toolCount}),t('detail.toolCalls')));
+          const parent = taskOf(r.pid,task.parentId);
           const a = el('a');
           a.href = hashFor(parent ? {pid:r.pid,target:{kind:'task',id:parent.id}} : {pid:r.pid,target:{kind:'coord'}});
-          a.append(icon('corner','sm'),el('span','',`Origem: ${parent ? parent.name || parent.id : 'Coordenador'}`));
+          a.append(icon('corner','sm'),el('span','',t('detail.origin',{name:parent ? parent.name || parent.id : t('common.coordinator')})));
           meta.push(a);
-          if (t.status === 'running' && t.current) {
-            const sum = toolSummary(t.current);
+          if (task.status === 'running' && task.current) {
+            const sum = toolSummary(task.current);
             const dot = el('span','dot'); dot.dataset.live = '';
-            now.replaceChildren(dot,el('span','t',`Agora: ${t.current.name}${sum ? ' — ' + sum : ''}`));
+            now.replaceChildren(dot,el('span','t',t('detail.now',{what:`${task.current.name}${sum ? ' — ' + sum : ''}`})));
             now.hidden = false;
           }
         }
@@ -1095,10 +1300,10 @@
       if (!detail.data) {
         $('activity-count').textContent = '';
         content = detail.error
-          ? [stateBox('Não foi possível carregar os detalhes',detail.error,{tone:'danger',small:true,retry:() => fetchDetail(false)})]
-          : [stateBox('Carregando detalhes',r.target.kind === 'coord' ? 'Lendo a sessão do coordenador.' : 'Lendo a sessão deste agente.',{small:true})];
+          ? [stateBox(t('detail.loadFailed'),errMsg(detail.error),{tone:'danger',small:true,retry:() => fetchDetail(false)})]
+          : [stateBox(t('detail.loading'),r.target.kind === 'coord' ? t('detail.readingCoord') : t('detail.readingAgent'),{small:true})];
       } else content = detail.tab === 'instruction' ? instructionPane() : detail.tab === 'result' ? resultPane() : activityPane();
-      if (detail.refreshError && detail.data) content.unshift(notice(`Falha ao atualizar: ${detail.refreshError}`));
+      if (detail.refreshError && detail.data) content.unshift(notice(t('detail.refreshFailed',{reason:errMsg(detail.refreshError)})));
       body.replaceChildren(...content);
       if (mode === 'top') body.scrollTop = 0;
       else if (mode === 'bottom' || (mode === 'follow' && atBottom)) body.scrollTop = body.scrollHeight;
@@ -1132,12 +1337,12 @@
       const shown = all.filter(e => (detail.evFilter === 'all' || (e.kind === 'tool' && (detail.evFilter === 'tools' || e.tool?.isError))) && (!q || searchText(e).includes(q)));
       const tools = all.filter(e => e.kind === 'tool').length, errors = all.filter(e => e.kind === 'tool' && e.tool?.isError).length;
       $('activity-count').textContent = shown.length === all.length
-        ? `${plural(all.length,'evento','eventos')} · ${plural(tools,'comando','comandos')} · ${plural(errors,'erro','erros')}`
-        : `${num(shown.length)} de ${plural(all.length,'evento','eventos')}`;
-      if (!all.length) out.push(stateBox('Nenhuma atividade ainda',isTask ? 'O agente ainda não registrou mensagens nem chamadas de ferramenta.' : 'O coordenador ainda não registrou atividade.',{small:true}));
-      else if (!shown.length) out.push(stateBox('Nada encontrado',q ? `Nenhum evento corresponde a “${detail.search.trim()}” neste filtro.` : detail.evFilter === 'errors' ? 'Nenhuma chamada de ferramenta falhou.' : 'Nenhuma chamada de ferramenta registrada.',{small:true}));
+        ? `${t('act.events',{count:all.length})} · ${t('act.commands',{count:tools})} · ${t('act.errors',{count:errors})}`
+        : t('act.shownOf',{shown:num(shown.length),all:t('act.events',{count:all.length})});
+      if (!all.length) out.push(stateBox(t('act.none'),isTask ? t('act.noneAgent') : t('act.noneCoord'),{small:true}));
+      else if (!shown.length) out.push(stateBox(t('act.nothing'),q ? t('act.noMatch',{q:detail.search.trim()}) : detail.evFilter === 'errors' ? t('act.noErrors') : t('act.noTools'),{small:true}));
       else {
-        const list = el('ol','tl'); list.setAttribute('aria-label','Linha do tempo');
+        const list = el('ol','tl'); list.setAttribute('aria-label',t('act.timeline'));
         for (const e of shown) list.append(eventItem(e,isTask));
         out.push(list);
       }
@@ -1146,8 +1351,8 @@
     function pinned(text) {
       const d = el('details','pinned'); d.open = detail.pinOpen;
       const s = el('summary'); s.dataset.key = 'pin';
-      s.append(icon('chevronRight','sm chev'),el('strong','','Instrução'),el('span','pin-preview t',firstLine(text) || 'Sem instrução registrada'));
-      d.append(s,el('div','pin-body',text || 'O servidor não informou a instrução deste agente.'));
+      s.append(icon('chevronRight','sm chev'),el('strong','',t('tab.instruction')),el('span','pin-preview t',firstLine(text) || t('pin.none')));
+      d.append(s,el('div','pin-body',text || t('pin.missing')));
       d.addEventListener('toggle',() => { detail.pinOpen = d.open; });
       return d;
     }
@@ -1156,15 +1361,15 @@
       if (e.kind === 'thinking' || e.kind === 'model') {
         const li = el('li',e.kind === 'thinking' ? 'ev ev-think' : 'ev ev-sys');
         li.append(icon(e.kind === 'thinking' ? 'sparkle' : 'cpu','sm'),
-          el('span','t',e.kind === 'thinking' ? (e.text ? `Pensando: ${e.text}` : 'Pensando') : `Modelo: ${e.text || 'alterado'}`),timeEl(e.at));
+          el('span','t',e.kind === 'thinking' ? (e.text ? t('ev.thinkingText',{text:e.text}) : t('ev.thinking')) : t('ev.model',{text:e.text || t('ev.modelChanged')})),timeEl(e.at));
         return li;
       }
       const labels = isTask
-        ? {user:'Mensagem recebida',instruction:'Instrução',assistant:'Agente'}
-        : {user:'Usuário',instruction:'Instrução',assistant:'Coordenador'};
+        ? {user:t('ev.received'),instruction:t('tab.instruction'),assistant:t('common.agent')}
+        : {user:t('ev.user'),instruction:t('tab.instruction'),assistant:t('common.coordinator')};
       const li = el('li','ev ev-msg'); li.dataset.kind = e.kind || 'other';
       const head = el('div','ev-head');
-      head.append(icon(e.kind === 'assistant' ? 'bot' : 'user','sm'),el('strong','',labels[e.kind] || e.kind || 'Evento'),timeEl(e.at));
+      head.append(icon(e.kind === 'assistant' ? 'bot' : 'user','sm'),el('strong','',labels[e.kind] || e.kind || t('ev.event')),timeEl(e.at));
       li.append(head,el('div','ev-text',e.text ?? ''));
       return li;
     }
@@ -1180,7 +1385,7 @@
       if (isError) pre.dataset.error = '';
       container.append(pre);
       if (c.long) {
-        const more = el('button','linkish',detail.full.has(key) ? 'Recolher' : `Mostrar tudo (${num(c.lines)} linhas)`);
+        const more = el('button','linkish',detail.full.has(key) ? t('tool.collapse') : t('tool.showAll',{count:c.lines}));
         more.type = 'button'; more.dataset.key = 'more:' + key;
         more.addEventListener('click',() => {
           detail.full.has(key) ? detail.full.delete(key) : detail.full.add(key);
@@ -1191,19 +1396,19 @@
       }
     }
     function toolItem(e) {
-      const t = e.tool || {}, key = String(t.callId || e.id);
-      const state = t.isError ? 'error' : t.endedAt ? 'ok' : 'running';
+      const call = e.tool || {}, key = String(call.callId || e.id);
+      const state = call.isError ? 'error' : call.endedAt ? 'ok' : 'running';
       const open = detail.expanded.has(key);
       const li = el('li','ev tool'); li.dataset.state = state; li.toolEvent = e; li.toggleAttribute('data-open',open);
       const row = el('button','tool-row'); row.type = 'button'; row.dataset.key = 'call:' + key;
       row.setAttribute('aria-expanded',String(open)); row.setAttribute('aria-controls','tb-' + domId(key));
       const ic = el('span','t-icon');
       ic.append(icon(state === 'error' ? 'x' : state === 'ok' ? 'check' : 'loader',state === 'running' ? 'sm spin' : 'sm'));
-      const d = dur((ms(t.endedAt) ?? NaN) - (ms(e.at) ?? NaN));
-      row.append(ic,el('span','sr-only',state === 'error' ? 'Falhou: ' : state === 'running' ? 'Em execução: ' : 'Concluído: '),
-        el('span','t-name',t.name || 'ferramenta'),el('span','t-sum',toolSummary(t)),
-        el('span','t-dur',state === 'running' ? 'em execução' : state === 'error' ? `falhou · ${d}` : d),icon('chevronRight','sm chev'));
-      row.title = t.summary || t.name || '';
+      const d = dur((ms(call.endedAt) ?? NaN) - (ms(e.at) ?? NaN));
+      row.append(ic,el('span','sr-only',state === 'error' ? t('tool.srFailed') : state === 'running' ? t('tool.srRunning') : t('tool.srDone')),
+        el('span','t-name',call.name || t('tool.fallback')),el('span','t-sum',toolSummary(call)),
+        el('span','t-dur',state === 'running' ? t('tool.running') : state === 'error' ? t('tool.failedDur',{d}) : d),icon('chevronRight','sm chev'));
+      row.title = call.summary || call.name || '';
       const body = el('div','tool-body'); body.id = 'tb-' + domId(key); body.hidden = !open;
       if (open) fillToolBody(body,e);
       row.addEventListener('click',() => {
@@ -1216,36 +1421,36 @@
       return li;
     }
     function fillToolBody(body, e) {
-      const t = e.tool || {}, key = String(t.callId || e.id);
-      const info = [`Início ${clock(e.at) || '—'}`];
-      if (t.endedAt) info.push(`fim ${clock(t.endedAt)}`);
-      if (t.callId) info.push(`id ${t.callId}`);
+      const call = e.tool || {}, key = String(call.callId || e.id);
+      const info = [t('tool.start',{time:clock(e.at) || '—'})];
+      if (call.endedAt) info.push(t('tool.end',{time:clock(call.endedAt)}));
+      if (call.callId) info.push(t('tool.id',{id:call.callId}));
       body.append(el('p','tb-meta',info.join(' · ')));
-      const args = el('div'); args.append(el('div','tb-label','Argumentos'));
-      codeBlock(args,prettyArgs(t.args),'args:' + key,false);
-      const res = el('div'), label = el('div','tb-label',t.isError ? 'Erro retornado' : 'Resultado');
-      if (t.isError) { label.dataset.tone = 'danger'; label.prepend(icon('alert','sm')); }
+      const args = el('div'); args.append(el('div','tb-label',t('tool.args')));
+      codeBlock(args,prettyArgs(call.args),'args:' + key,false);
+      const res = el('div'), label = el('div','tb-label',call.isError ? t('tool.errorResult') : t('tool.result'));
+      if (call.isError) { label.dataset.tone = 'danger'; label.prepend(icon('alert','sm')); }
       res.append(label);
-      if (t.result == null || t.result === '') res.append(el('p','tb-note',t.endedAt ? 'Sem conteúdo de resultado.' : 'Aguardando resultado: a chamada ainda está em execução.'));
-      else codeBlock(res,t.result,'res:' + key,!!t.isError);
-      if (t.truncated) res.append(el('p','tb-note','Resultado truncado pelo servidor (limite de 20.000 caracteres).'));
+      if (call.result == null || call.result === '') res.append(el('p','tb-note',call.endedAt ? t('tool.noResult') : t('tool.waiting')));
+      else codeBlock(res,call.result,'res:' + key,!!call.isError);
+      if (call.truncated) res.append(el('p','tb-note',t('tool.truncated',{max:num(20000)})));
       body.append(args,res);
     }
     function instructionPane() {
       const text = detail.data.instruction || detail.data.timeline?.find?.(e => e?.kind === 'instruction')?.text || '';
-      if (!text) return [stateBox('Instrução não informada','O servidor não registrou o prompt recebido por este agente.',{small:true})];
+      if (!text) return [stateBox(t('instr.none'),t('instr.noneText'),{small:true})];
       const head = el('div','pane-head');
-      head.append(el('span','','Prompt recebido pelo agente'),el('span','',`${num(text.length)} caracteres`));
+      head.append(el('span','',t('instr.head')),el('span','',t('common.chars',{count:text.length})));
       return [head,el('div','prose',text)];
     }
     function resultPane() {
-      const r = detailTarget(), t = taskOf(r.pid,r.target.id) || detail.data.task;
-      const text = t?.lastText;
-      if (!text) return [stateBox('Sem resultado ainda',t && TERMINAL.has(t.status) ? 'O agente terminou sem texto final registrado.' : 'O resultado aparece quando o agente responder.',{small:true})];
+      const r = detailTarget(), task = taskOf(r.pid,r.target.id) || detail.data.task;
+      const text = task?.lastText;
+      if (!text) return [stateBox(t('res.none'),task && TERMINAL.has(task.status) ? t('res.noneDone') : t('res.noneWait'),{small:true})];
       const out = [];
-      if (!TERMINAL.has(t.status)) out.push(notice('O agente ainda está em execução; este é o texto mais recente.'));
+      if (!TERMINAL.has(task.status)) out.push(notice(t('res.stillRunning')));
       const head = el('div','pane-head');
-      head.append(el('span','',FAILED.has(t.status) ? 'Última resposta antes da falha' : 'Resposta final'),el('span','',`${num(text.length)} caracteres`));
+      head.append(el('span','',FAILED.has(task.status) ? t('res.lastBeforeFail') : t('res.final')),el('span','',t('common.chars',{count:text.length})));
       out.push(head,el('div','prose',text));
       return out;
     }
@@ -1261,31 +1466,31 @@
       if (!c) return;
       const busy = control.busyKey === c.key;
       let blocked = '';
-      if (!streamLive()) blocked = 'Hub desconectado. Os controles voltam após a reconexão.';
-      else if (!c.p?.online) blocked = 'Projeto offline. Os controles voltam quando a sessão responder.';
-      else if (!app.projects?.controlToken) blocked = 'O hub não forneceu autorização para controles.';
-      else if (c.kind === 'task' && !c.t) blocked = 'Este agente não está no estado atual do projeto.';
-      const name = c.kind === 'coord' ? 'o coordenador' : (c.t?.name || 'o agente');
-      $('message-label').textContent = `Mensagem para ${name}`;
+      if (!streamLive()) blocked = t('composer.blockedHub');
+      else if (!c.p?.online) blocked = t('composer.blockedOffline');
+      else if (!app.projects?.controlToken) blocked = t('composer.blockedToken');
+      else if (c.kind === 'task' && !c.t) blocked = t('composer.blockedMissing');
+      const name = c.kind === 'coord' ? t('composer.theCoord') : (c.t?.name || t('composer.theAgent'));
+      $('message-label').textContent = t('composer.to',{name});
       const ta = $('message');
       if (ta.dataset.key !== c.key) { ta.dataset.key = c.key; ta.value = drafts.get(c.key) || ''; }
       ta.disabled = !!blocked || busy;
       const len = ta.value.length;
       $('send').disabled = !!blocked || busy || !ta.value.trim() || len > MAX_TEXT;
-      $('send-label').textContent = busy && control.action === 'message' ? 'Enviando…' : 'Enviar';
+      $('send-label').textContent = busy && control.action === 'message' ? t('composer.sending') : t('composer.send');
       const terminal = c.kind === 'task' && TERMINAL.has(c.t?.status);
       $('abort').hidden = c.kind === 'coord';
       $('abort').disabled = !!blocked || busy || terminal || !c.t;
-      $('abort').textContent = busy && control.action === 'abort' ? 'Interrompendo…' : 'Interromper';
-      $('abort').title = terminal ? 'O agente já terminou.' : '';
+      $('abort').textContent = busy && control.action === 'abort' ? t('composer.aborting') : t('composer.abort');
+      $('abort').title = terminal ? t('composer.finished') : '';
       $('abort-confirm').hidden = control.confirmKey !== c.key || busy;
-      $('abort-question').textContent = `Interromper ${name}? O trabalho em andamento será cancelado.`;
+      $('abort-question').textContent = t('composer.abortQuestion',{name});
       const hint = $('send-hint');
-      hint.textContent = len > MAX_TEXT - 2000 ? `${num(len)} / ${num(MAX_TEXT)} caracteres` : `${isMac ? '⌘' : 'Ctrl'}+Enter para enviar`;
+      hint.textContent = len > MAX_TEXT - 2000 ? t('composer.count',{len:num(len),max:num(MAX_TEXT)}) : t('composer.hint',{key:isMac ? '⌘' : 'Ctrl'});
       hint.dataset.tone = len > MAX_TEXT ? 'danger' : 'neutral';
       const noteEl = $('control-note'), n = notes.get(c.key);
-      if (busy) { noteEl.textContent = 'Aguardando confirmação do servidor…'; noteEl.dataset.tone = 'neutral'; }
-      else if (n) { noteEl.textContent = n.text; noteEl.dataset.tone = n.tone; }
+      if (busy) { noteEl.textContent = t('composer.waiting'); noteEl.dataset.tone = 'neutral'; }
+      else if (n) { noteEl.textContent = n.text(); noteEl.dataset.tone = n.tone; }
       else { noteEl.textContent = blocked; noteEl.dataset.tone = 'neutral'; }
     }
     async function sendControl(action) {
@@ -1305,14 +1510,16 @@
           ...(action === 'message' ? {body:JSON.stringify({text})} : {})
         });
         let data = {}; try { data = await res.json(); } catch {}
-        if (!res.ok || data.ok !== true) throw new Error(data.error || `O hub recusou a ação (HTTP ${res.status}).`);
+        if (!res.ok || data.ok !== true) throw apiError(data,['err.refused',{status:res.status}]);
         if (action === 'message') {
           drafts.delete(c.key);
           if ($('message').dataset.key === c.key) $('message').value = '';
         }
-        notes.set(c.key,{text:OUTCOME[data.outcome] || 'Ação confirmada pelo servidor.',tone:'success'});
+        // Notes keep a render function so a language switch re-translates them.
+        const done = typeof data.outcome === 'string' && has('outcome.' + data.outcome) ? 'outcome.' + data.outcome : 'composer.confirmed';
+        notes.set(c.key,{text:() => t(done),tone:'success'});
       } catch (error) {
-        notes.set(c.key,{text:`${action === 'message' ? 'Mensagem não enviada' : 'Interrupção não realizada'}: ${error.message}`,tone:'danger'});
+        notes.set(c.key,{text:() => t(action === 'message' ? 'composer.messageFailed' : 'composer.abortFailed',{reason:errMsg(error)}),tone:'danger'});
       } finally {
         control.busyKey = null; control.action = null;
         if (composerTarget()?.key === c.key) { renderComposer(); if (notes.get(c.key)?.tone === 'success') fetchDetail(true); }
@@ -1391,6 +1598,32 @@
     window.addEventListener('hashchange',() => { if (hashFor(app.route) !== location.hash) applyRoute(parseHash()); });
     matchMedia('(max-width:760px)').addEventListener('change',() => renderMain());
 
+    const projectsErrorText = () => t('main.projectsFailed',{reason:errMsg(app.projectsError)});
+    // Applies a language to formatters, <html lang>, title and the static markup; rerender() refreshes dynamic parts.
+    function setLang(next) {
+      lang = next; setFormatters();
+      document.documentElement.lang = next;
+      document.title = t('app.title');
+      document.querySelector('meta[name="description"]')?.setAttribute('content',t('app.description'));
+      $('lang').value = next;
+      for (const n of document.querySelectorAll('[data-i18n]')) n.textContent = t(n.dataset.i18n);
+      for (const n of document.querySelectorAll('[data-i18n-aria]')) n.setAttribute('aria-label',t(n.dataset.i18nAria));
+      for (const n of document.querySelectorAll('[data-i18n-ph]')) n.placeholder = t(n.dataset.i18nPh);
+    }
+    function rerender() {
+      const list = $('project-list'), top = list.scrollTop;
+      renderConnection(); renderSidebar(); list.scrollTop = top; renderMain();
+      if (detailTarget()) { renderDetailShell(); renderDetailBody('keep'); }
+    }
+    // Initial language: stored choice, else ProjectsSnapshot.locale (see acceptProjects), else English.
+    try { storedLang = normLang(localStorage.getItem(LANG_KEY)); } catch {}
+    setLang(storedLang || 'en');
+    $('lang').addEventListener('change',() => {
+      storedLang = normLang($('lang').value) || 'en';
+      try { localStorage.setItem(LANG_KEY,storedLang); } catch {}
+      setLang(storedLang); rerender();
+    });
+
     const themeMedia = matchMedia('(prefers-color-scheme: dark)');
     function applyTheme() {
       const mode = $('theme').value;
@@ -1414,7 +1647,7 @@
       return event => {
         let data;
         try { data = JSON.parse(event.data); }
-        catch { app.eventError = `O hub enviou um evento “${event.type}” inválido; aguardando o próximo.`; renderMain(); return; }
+        catch { app.eventError = event.type; renderMain(); return; }
         if (app.eventError) { app.eventError = ''; renderMain(); }
         handler(data);
       };

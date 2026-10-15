@@ -2,7 +2,7 @@ import { watch } from "node:fs";
 import { mkdir, readdir, readFile, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
-import { hubPort, runDir as defaultRunDir } from "./paths.mjs";
+import { hubPort, locale, runDir as defaultRunDir } from "./paths.mjs";
 
 const alive = pid => {
   try { process.kill(pid, 0); return true; }
@@ -22,7 +22,7 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
     }));
   }
   function snapshot() {
-    return { revision, controlToken, projects: [...projects.values()].map(project => {
+    return { revision, controlToken, locale, projects: [...projects.values()].map(project => {
       const tasks = project.state?.tasks || [];
       return { id: project.entry.id, name: project.entry.name, cwd: project.entry.cwd,
         startedAt: project.entry.startedAt, online: project.online,
@@ -128,7 +128,7 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
     server = Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 0, maxRequestBodySize: 256_000,
       async fetch(request) {
         const url = new URL(request.url), path = url.pathname;
-        if (url.hostname !== "127.0.0.1") return json({ error: "Controle nao autorizado." }, 403);
+        if (url.hostname !== "127.0.0.1") return json({ error: "Control not authorized.", code: "unauthorized" }, 403);
         if (request.method === "GET" && path === "/") return new Response(Bun.file(join(import.meta.dir, "index.html")), {
           headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
         });
@@ -146,18 +146,18 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
         }
         const match = /^\/api\/projects\/([^/]+)\/(state|coordinator(?:\/message)?|tasks\/st_[A-Za-z0-9_-]+(?:\/(?:message|abort))?)$/.exec(path);
         const project = match && projects.get(match[1]);
-        if (!project) return json({ error: "Projeto nao encontrado." }, 404);
+        if (!project) return json({ error: "Project not found.", code: "project_not_found" }, 404);
         const control = /\/(message|abort)$/.test(match[2]);
-        if (request.method !== (control ? "POST" : "GET")) return json({ error: "Metodo invalido." }, 405);
+        if (request.method !== (control ? "POST" : "GET")) return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
         if (control && (request.headers.get("X-OmO-Control") !== controlToken
           || request.headers.has("Origin") && request.headers.get("Origin") !== server.url.origin))
-          return json({ error: "Controle nao autorizado." }, 403);
+          return json({ error: "Control not authorized.", code: "unauthorized" }, 403);
         let body;
         if (match[2].endsWith("/message")) {
           try { body = await request.json(); }
-          catch (error) { if (error instanceof SyntaxError) return json({ error: "JSON invalido." }, 400); throw error; }
+          catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON.", code: "invalid_json" }, 400); throw error; }
           if (typeof body?.text !== "string" || !body.text.trim() || body.text.length > 32_000)
-            return json({ error: "Envie uma mensagem de ate 32.000 caracteres." }, 400);
+            return json({ error: "Send a message of up to 32,000 characters.", code: "invalid_message" }, 400);
         }
         try {
           const upstream = await fetch(new URL(`/api/${match[2]}`, project.entry.url), {
@@ -169,11 +169,11 @@ export async function startHub({ port = hubPort, runDir = defaultRunDir } = {}) 
           if (upstream.ok && match[2] === "state") acceptState(project, value);
           return json(safe(value), upstream.status);
         } catch (error) {
-          if (request.signal.aborted) return json({ error: "Requisicao cancelada." }, 499);
+          if (request.signal.aborted) return json({ error: "Request cancelled.", code: "request_cancelled" }, 499);
           project.online = false; publishProjects();
           if (!alive(project.entry.pid)) void rescan();
           console.error("[agent-monitor-hub] proxy failed", { projectId: project.entry.id, error: error.message });
-          return json({ error: "Sessao indisponivel." }, 503);
+          return json({ error: "Session unavailable.", code: "session_unavailable" }, 503);
         }
       },
     });

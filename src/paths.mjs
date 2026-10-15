@@ -5,6 +5,8 @@ import { join } from "node:path";
 export const agentDir = process.env.PI_CODING_AGENT_DIR || join(homedir(), ".omo", "agent");
 export const runDir = process.env.OMO_MONITOR_RUN_DIR || join(agentDir, "agent-monitor", "run");
 export const hubPort = Number(process.env.OMO_MONITOR_PORT || 47800);
+// English by default; OMO_MONITOR_LANG=pt-BR (or any "pt...") switches to Brazilian Portuguese.
+export const locale = /^pt/i.test(process.env.OMO_MONITOR_LANG || "") ? "pt-BR" : "en";
 
 // OmO ships as a compiled Bun binary; with BUN_BE_BUN=1 it runs scripts like the bun CLI,
 // so the hub and tmux readers need no separate Bun installation.

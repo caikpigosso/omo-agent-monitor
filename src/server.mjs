@@ -164,12 +164,12 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
     const quota = readCoordinator ? await readCoordinator() : { kind: "none" };
     records = nextRecords; lineage = nextLineage; transcripts = nextTranscripts;
     const next = { connection: "live", controlToken,
-      parents: [{ id: parentId, name: "Coordenador OmO", cwd, project: basename(cwd),
+      parents: [{ id: parentId, name: "OmO coordinator", cwd, project: basename(cwd),
         model: coordinator.model ? `${coordinator.model.provider}/${coordinator.model.model}` : model, status }],
       tasks: [...records.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)).map(taskView), dags,
       quota: quota.kind === "selected" ? { ...quota.remaining, selectedProvider: quota.provider } : {},
       errors: quota.kind === "selected" || quota.kind === "none" ? []
-        : ["Cotas sem duas leituras recentes; use o painel nativo de uso para atualiza-las."] };
+        : ["Quota has fewer than two recent readings; refresh it in the native usage panel."] };
     const nextFingerprint = JSON.stringify([next, coordinator.timeline, [...transcripts]]); if (nextFingerprint === fingerprint) return;
     fingerprint = nextFingerprint;
     snapshot = { revision: ++revision, ...next };
@@ -190,7 +190,7 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
   server = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 0, maxRequestBodySize: 256_000,
     async fetch(request) {
       const url = new URL(request.url), path = url.pathname;
-      if (url.hostname !== "127.0.0.1") return json({ error: "Controle nao autorizado." }, 403);
+      if (url.hostname !== "127.0.0.1") return json({ error: "Control not authorized.", code: "unauthorized" }, 403);
       if (request.method === "GET" && path === "/") return new Response(Bun.file(join(import.meta.dir, "index.html")));
       if (request.method === "GET" && path === "/api/state") return json(snapshot);
       if (request.method === "GET" && path === "/api/events") {
@@ -202,29 +202,29 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
       }
       const match = /^\/api\/tasks\/(st_[A-Za-z0-9_-]+)(?:\/(message|abort))?$/.exec(path);
       const isCoordinator = path === "/api/coordinator" || path === "/api/coordinator/message";
-      if (!isCoordinator && (!match || !records.has(match[1]))) return json({ error: "Agente fora desta sessao." }, 404);
+      if (!isCoordinator && (!match || !records.has(match[1]))) return json({ error: "Agent is not part of this session.", code: "task_not_found" }, 404);
       if (request.method === "GET" && (path === "/api/coordinator" || !isCoordinator && !match[2])) {
         await refresh();
         if (isCoordinator) return json({ parent: snapshot.parents[0], timeline: coordinator.timeline });
         const record = records.get(match[1]), detail = transcripts.get(match[1]);
-        if (!record) return json({ error: "Agente fora desta sessao." }, 404);
+        if (!record) return json({ error: "Agent is not part of this session.", code: "task_not_found" }, 404);
         return json({ task: taskView(record), instruction: detail.instruction, timeline: detail.timeline, messages: detail.messages });
       }
       if (request.method !== "POST" || isCoordinator && path !== "/api/coordinator/message" || !isCoordinator && !match[2])
-        return json({ error: "Metodo invalido." }, 405);
+        return json({ error: "Method not allowed.", code: "method_not_allowed" }, 405);
       if (request.headers.get("X-OmO-Control") !== controlToken
         || request.headers.has("Origin") && request.headers.get("Origin") !== server.url.origin)
-        return json({ error: "Controle nao autorizado." }, 403);
+        return json({ error: "Control not authorized.", code: "unauthorized" }, 403);
       try {
         const action = isCoordinator ? "message" : match[2], record = isCoordinator ? undefined : records.get(match[1]);
-        if (action === "abort" && terminalStates.has(record.status)) return json({ error: "Este agente ja terminou." }, 409);
+        if (action === "abort" && terminalStates.has(record.status)) return json({ error: "This agent has already finished.", code: "agent_finished" }, 409);
         let body = {};
         try { if (action === "message") body = await request.json(); }
-        catch (error) { if (error instanceof SyntaxError) return json({ error: "JSON invalido." }, 400); throw error; }
+        catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON.", code: "invalid_json" }, 400); throw error; }
         if (action === "message" && (typeof body?.text !== "string" || !body.text.trim() || body.text.length > 32_000))
-          return json({ error: "Envie uma mensagem de ate 32.000 caracteres." }, 400);
+          return json({ error: "Send a message of up to 32,000 characters.", code: "invalid_message" }, 400);
         if (isCoordinator) {
-          if (!sendUserMessage) return json({ error: "Coordenador indisponivel." }, 503);
+          if (!sendUserMessage) return json({ error: "Coordinator unavailable.", code: "coordinator_unavailable" }, 503);
           await sendUserMessage(body.text, { deliverAs: "followUp" });
           return json({ ok: true, outcome: "delivered" });
         }
@@ -234,11 +234,11 @@ export async function startMonitor({ cwd, parentId, executeTool, sendUserMessage
         const details = nested.result.details;
         const accepted = action === "message" ? ["steered", "revived", "queued"].includes(details?.kind)
           : details?.kind === "cancelled" && details.status === "cancelled";
-        return nested.isError || !accepted ? json({ error: textOf(nested.result.content) }, 409)
+        return nested.isError || !accepted ? json({ error: textOf(nested.result.content), code: "control_rejected" }, 409)
           : json({ ok: true, outcome: details.kind });
       } catch (error) {
         console.error("[agent-monitor] control failed", { parentId, error: error.message });
-        return json({ error: "Falha ao controlar o agente." }, 500);
+        return json({ error: "Failed to control the agent.", code: "control_failed" }, 500);
       }
     },
   });

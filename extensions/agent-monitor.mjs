@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { startMonitor } from "../src/server.mjs";
-import { hubPort, runtime, runtimeEnv } from "../src/paths.mjs";
+import { hubPort, locale, runtime, runtimeEnv } from "../src/paths.mjs";
+import { text } from "../src/messages.mjs";
 
 const hubUrl = `http://127.0.0.1:${hubPort}/`;
 async function ensureHub() {
@@ -38,7 +39,7 @@ export default function registerAgentMonitor(pi) {
       return value && "result" in value ? value : { result: value, isError: value?.isError === true };
     }
     if (toolCtx) return toolCtx.executeTool(name, args);
-    throw new Error("Controle indisponivel nesta sessao; rode /monitor uma vez e tente de novo.");
+    throw new Error(text.controlUnavailable);
   }
   async function stopReaders() {
     if (!tmuxSession) return;
@@ -73,7 +74,7 @@ export default function registerAgentMonitor(pi) {
       const name = `omo-agents-${new URL(monitor.url).port}`;
       const child = Bun.spawn([
         "tmux", "new-session", "-d", "-s", name, "-n", "agentes", "-x", "180", "-y", "50",
-        "env", "BUN_BE_BUN=1", runtime, new URL("../src/terminal.mjs", import.meta.url).pathname,
+        "env", "BUN_BE_BUN=1", `OMO_MONITOR_LANG=${locale}`, runtime, new URL("../src/terminal.mjs", import.meta.url).pathname,
         "--url", monitor.url, "--session", name,
       ], { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
       const error = await new Response(child.stderr).text();
@@ -81,7 +82,7 @@ export default function registerAgentMonitor(pi) {
       tmuxSession = name;
     }
     const url = `${hubUrl}#/p/${parentId}`;
-    return { content: [{ type: "text", text: [`Painel: ${url}`,
+    return { content: [{ type: "text", text: [`${text.dashboard}: ${url}`,
       ...(tmuxSession ? [`Terminal: tmux attach -t ${tmuxSession}`] : [])].join("\n") }],
       details: { url, tmux_session: tmuxSession } };
   }
@@ -97,7 +98,7 @@ export default function registerAgentMonitor(pi) {
     finally { await stopReaders(); await monitor?.stop(); monitor = undefined; }
   });
   pi.registerTool({
-    name: "agent_monitor", label: "Painel dos agentes",
+    name: "agent_monitor", label: text.toolLabel,
     description: "Show the multi-project local agent dashboard; optionally create interactive tmux viewer panes.",
     parameters: { type: "object", properties: { tmux: { type: "boolean" } }, additionalProperties: false },
     async execute(_id, parameters, _signal, _update, ctx) { toolCtx = ctx; return show(ctx, parameters.tmux === true); },
@@ -108,11 +109,11 @@ export default function registerAgentMonitor(pi) {
       const command = args.trim();
       if (command === "stop") {
         await stopReaders();
-        ctx.ui.notify("Leitores tmux encerrados; o painel e os agentes continuam.", "info");
+        ctx.ui.notify(text.readersClosed, "info");
         return;
       }
       if (command && command !== "tmux") {
-        ctx.ui.notify("Use /monitor, /monitor tmux ou /monitor stop.", "warning");
+        ctx.ui.notify(text.usage, "warning");
         return;
       }
       const result = await show(ctx, command === "tmux");

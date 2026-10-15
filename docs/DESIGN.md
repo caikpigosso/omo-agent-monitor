@@ -14,14 +14,15 @@ child agents. Verified instead with real WebKit renders against a scratch
 mock hub (`/tmp/omo-monitor-mock`, synthetic fixtures, never shipped).
 
 ## 1. Atmosphere & Identity
-A pt-BR control room for local agent sessions. The agent flow is the hero:
+A bilingual control room for local agent sessions (English by default,
+Brazilian Portuguese as the alternative; see section 9). The agent flow is the hero:
 coordinator -> children -> grandchildren drawn as connected cards. No
 marketing hero, no decorative motion, no fictional activity, no invented DAG.
-Owner wordmark: OmO. Page title: Painel de agentes · OmO.
+Owner wordmark: OmO. Page title: Agent dashboard · OmO / Painel de agentes · OmO.
 
 ## 2. Color
 All colors are CSS custom properties; light / dark (`data-theme` on `<html>`,
-selected by the theme select: Sistema / Clara / Escura, default Sistema).
+selected by the theme select: System / Light / Dark, default System).
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
@@ -42,7 +43,7 @@ selected by the theme select: Sistema / Clara / Escura, default Sistema).
 | --danger (+wash, -ink) | #bf3228 | #ff9189 | error/failed, destructive |
 | --focus | #2f6fe4 | #83b3ff | focus-visible ring only |
 
-Status is always a chip: dot + pt-BR text. Unknown statuses show the raw
+Status is always a chip: dot + translated text. Unknown statuses show the raw
 value. Selection is a neutral wash + check glyph (projects, nodes); the
 active tab is a neutral ink underline. No colored accent side-borders.
 
@@ -139,13 +140,40 @@ and mobile sheets. Focus ring: 2px --focus, 2px offset.
 
 ## 8. Accessibility Constraints & Accepted Debt
 WCAG AA text contrast in both themes; visible focus on every control; named
-inputs and landmarks (aside Projetos, main, aside detail); status never
+inputs and landmarks (aside Projects, main, aside detail); status never
 color-only; icon-only buttons carry aria-labels; flow stats carry
 screen-reader text. All data is inserted with `textContent`; the control
 token lives only in memory and in the `X-OmO-Control` header; only the
-theme preference is persisted (localStorage `omo-monitor-theme`).
+theme and language preferences are persisted (localStorage
+`omo-monitor-theme`, `omo-monitor-lang`).
 Accepted debt: the flow tree is a group of buttons, not a full ARIA tree;
 node durations update on each state revision, not every second (no timers);
 a very wide tree scrolls horizontally inside the flow panel; Lighthouse and
 independent reviewer passes are not claimed (no installs or child agents
 authorized for this task).
+
+## 9. Language
+English (`en`, formats with `en-US`) is the default; Brazilian Portuguese
+(`pt-BR`) is the alternative. Component names elsewhere in this file use the
+English labels; the pt-BR wording is the v2 original (Atividade, Instrução,
+Coordenador, Interromper, Enviar...).
+- All copy lives in two flat dictionaries inside `index.html` with identical
+  keys, read through `t(key, vars)`. Plural entries are `{one, other}`
+  selected by `Intl.PluralRules`; zero always takes `other`. Numbers,
+  compact tokens (`12.9M` / `12,9 mi`), times and durations (`3m 4s` /
+  `3 min 4 s`) use `Intl` with the active locale. Static markup carries
+  `data-i18n`, `data-i18n-aria` and `data-i18n-ph`.
+- Selector: "Language / Idioma" next to Appearance in the sidebar footer
+  (inside the project sheet on mobile); options are endonyms (English,
+  Português (BR)) and never translate. Initial language: stored choice,
+  else `ProjectsSnapshot.locale` from the hub (`OMO_MONITOR_LANG`), else
+  English; never the browser locale. `<html lang>`, the title and the meta
+  description follow it.
+- Switching re-renders in place: route, open rows, tab, filter, search text,
+  composer drafts and scroll positions are kept.
+- Backend errors `{ error, code }` are translated by `code`; an unknown or
+  missing code shows the raw `error`. `control_rejected` shows a translated
+  prefix plus OmO's own reason. `SessionState.errors` are shown verbatim
+  except the known stale-quota message. The coordinator is always labelled
+  by the UI, never by `parents[0].name`. User and agent data (names,
+  prompts, tool output) is never translated.
